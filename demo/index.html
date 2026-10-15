@@ -1,13 +1,72 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Vacuum Card preview</title>
-<style>body{margin:32px;background:#111418;color:#e5e7eb;font:14px system-ui;--primary-text-color:#e5e7eb;--secondary-text-color:#a0a8b3;--card-background-color:#1c2128;--divider-color:#343c47;--primary-color:#80bfff}main{max-width:640px;margin:auto}homeassistant-vacuum-card{display:block;margin:16px 0}p{color:#a0a8b3}input{font:inherit;min-height:44px}</style>
-<main><h1>Vacuum Card</h1><p>Built card with simulated state. No Home Assistant connection.</p><homeassistant-vacuum-card id="compact"></homeassistant-vacuum-card><homeassistant-vacuum-card id="wide"></homeassistant-vacuum-card><label>Simulated state <input id="state" value="docked"></label></main>
+<title>Vacuum Card · simulated preview</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;padding:40px 24px;background:#eef1ed;color:#26332e;font:14px system-ui;--primary-text-color:#26332e;--secondary-text-color:#65746c;--card-background-color:#fcfdfb;--secondary-background-color:#f2f5f0;--divider-color:#dce3db;--primary-color:#37785b;--error-color:#ab392e;--ha-card-border-radius:20px}
+  body.dark{background:#151d19;color:#e1e9e1;--primary-text-color:#e1e9e1;--secondary-text-color:#a3b2a6;--card-background-color:#202b24;--secondary-background-color:#29372d;--divider-color:#3c4a40;--primary-color:#9ccc9e;--error-color:#ffada0}
+  main{max-width:1100px;margin:auto}header{margin-bottom:24px}h1{font-size:28px;font-weight:500;margin:0 0 8px}p{color:var(--secondary-text-color);line-height:1.5}button,select,input{font:inherit;min-height:44px;padding:8px 12px;color:inherit;background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:8px}button{cursor:pointer}label{display:flex;align-items:center;gap:8px}nav{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}.previews{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px}.preview{width:min(100%,360px)}.wide{width:min(100%,480px)}h2{font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}homeassistant-vacuum-card{display:block}.log{max-width:864px;white-space:pre-wrap;overflow-wrap:anywhere;font:12px monospace;border:1px solid var(--divider-color);padding:16px;border-radius:12px}details{max-width:864px;margin-top:24px}summary{cursor:pointer;min-height:44px;line-height:44px}
+</style>
+<main>
+<header><h1>Rooms, ready when you are.</h1><p>Vacuum Card · Simulated Home Assistant data and icons. Buttons only write to the log; no robot is connected.</p></header>
+<nav aria-label="Preview controls">
+  <button id="theme">Toggle light / dark</button>
+  <label>State <select id="scenario"><option value="cleaning">Cleaning</option><option value="docked">Docked</option><option value="error">Water shortage + vacuum error</option><option value="unavailable">Offline</option><option value="missing">Missing sensors</option></select></label>
+  <label>Compact width <select id="width"><option>360</option><option>280</option><option>480</option></select></label>
+  <label><input type="checkbox" id="fail"> Simulate failed command</label>
+</nav>
+<div class="previews"><section class="preview" id="compact-wrap"><h2>Compact · room controls</h2><homeassistant-vacuum-card id="compact"></homeassistant-vacuum-card></section><section class="preview wide"><h2>Wide · robot health</h2><homeassistant-vacuum-card id="wide"></homeassistant-vacuum-card></section></div>
+<p>Simulated service log</p><pre class="log" id="log" aria-live="polite">No commands sent.</pre>
+<details><summary>Try the editor (simulated HA selectors)</summary><p>These demo inputs exercise configuration changes. Real Home Assistant provides its own entity and icon pickers.</p><homeassistant-vacuum-card-editor id="editor"></homeassistant-vacuum-card-editor></details>
+</main>
 <script type="module">
+// Small original line drawings stand in for HA's icon component in the offline demo.
+const paths={
+  'mdi:robot-vacuum':'M5 7a9 9 0 1 0 14 0M5 7h14M9 4h6v3H9zM8 16h8M10 11h4',
+  'mdi:shower':'M6 8a6 6 0 0 1 12 0M5 8h14M7 12v2m5-2v2m5-2v2M7 18v2m5-2v2m5-2v2',
+  'mdi:sofa':'M5 11V7h14v4M3 11h4v5h10v-5h4v9H3zM6 20v2m12-2v2',
+  'mdi:bed':'M3 10h18v10M3 6v14m0-5h18M6 10V6h6v4m0 0V6h6v4',
+  'mdi:silverware-fork-knife':'M5 3v7m3-7v7M3 3v7h7V3M6 10v12M19 3c-4 3-4 8 0 9V3m0 9v10',
+  'mdi:desk':'M2 8h20M4 8v13m16-13v13M14 8v6h6M8 3h8v5',
+  'mdi:floor-plan':'M3 3h18v18H3zM3 12h8m4 0h6M12 3v6m0 7v5',
+  'mdi:alert-circle-outline':'M12 8v5m0 3v1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
+  'mdi:information-outline':'M12 11v6m0-10v1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'
+};
+customElements.define('ha-icon',class extends HTMLElement{
+  static observedAttributes=['icon'];
+  constructor(){super();this.attachShadow({mode:'open'});}
+  connectedCallback(){this.render();}attributeChangedCallback(){this.render();}
+  render(){this.shadowRoot.innerHTML='<style>:host{display:inline-flex;width:24px;height:24px}svg{width:100%;height:100%}</style><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path/></svg>';this.shadowRoot.querySelector('path').setAttribute('d',paths[this.getAttribute('icon')]||paths['mdi:floor-plan']);}
+});
+customElements.define('ha-form',class extends HTMLElement{
+  set hass(value){this._hass=value;}set data(value){this._data=value;this.render();}set schema(value){this._schema=value;this.render();}set computeLabel(value){this._label=value;this.render();}
+  render(){
+    if(!this._schema||!this._data||!this._label)return;
+    for(const field of this._schema){
+      let input=this.querySelector(`[data-field="${field.name}"]`);
+      if(!input){
+        const label=document.createElement('label');label.style.cssText='display:grid;gap:4px;margin:12px 0';
+        const caption=document.createElement('span');caption.textContent=this._label(field);label.append(caption);
+        input=document.createElement(field.selector.select?'select':'input');input.dataset.field=field.name;input.setAttribute('aria-label',caption.textContent);
+        if(field.selector.select)for(const value of field.selector.select.options){const option=document.createElement('option');option.value=value;option.textContent=value;input.append(option);}
+        input.addEventListener('input',()=>{this._data={...this._data,[field.name]:input.value};this.dispatchEvent(new CustomEvent('value-changed',{detail:{value:this._data},bubbles:true}));});
+        label.append(input);this.append(label);
+      }
+      if(input.value!==(this._data[field.name]||''))input.value=this._data[field.name]||'';
+    }
+  }
+});
 await import('../dist/homeassistant-vacuum-card.js');
-const hass={states:{'vacuum.example':{state:'docked',attributes:{friendly_name:'Example vacuum'}}}};
-const cards=['compact','wide'].map(layout=>{const card=document.getElementById(layout);card.setConfig({entity:'vacuum.example',layout});card.hass=hass;return card;});
-document.getElementById('state').addEventListener('input',event=>{hass.states['vacuum.example']={...hass.states['vacuum.example'],state:event.target.value};cards.forEach(card=>card.hass=hass);});
+const rooms=[{name:'Bad',icon:'mdi:shower',entity:'button.wohnzimmer_roborock_qrevo_master_bad'},{name:'Wohnzimmer',icon:'mdi:sofa',entity:'button.demo_living'},{name:'Küche',icon:'mdi:silverware-fork-knife',entity:'button.demo_kitchen'},{name:'Schlafzimmer',icon:'mdi:bed',entity:'button.demo_bedroom'},{name:'Arbeitszimmer',icon:'mdi:desk',entity:'button.demo_office'},{name:'Flur',icon:'mdi:floor-plan',entity:'button.demo_hall'}];
+const config={type:'custom:homeassistant-vacuum-card',entity:'vacuum.demo',name:'Roborock Qrevo Master',battery_entity:'sensor.demo_battery',progress_entity:'sensor.demo_progress',cleaning_area_entity:'sensor.demo_area',cleaning_time_entity:'sensor.demo_time',water_shortage_entity:'binary_sensor.demo_water',vacuum_error_entity:'sensor.demo_error',dock_error_entity:'sensor.demo_dock',rooms};
+const state=(value,attributes={})=>({state:value,attributes});
+const hass={states:{},callService:async(domain,service,data)=>{document.getElementById('log').textContent=JSON.stringify({domain,service,data},null,2);await new Promise(resolve=>setTimeout(resolve,700));if(document.getElementById('fail').checked)throw new Error('Simulated connection failure');}};
+const cards=['compact','wide'].map(layout=>{const card=document.getElementById(layout);card.setConfig({...config,layout});card.addEventListener('hass-more-info',event=>{document.getElementById('log').textContent='Simulated more-info: '+event.detail.entityId;});return card;});
+function scenario(value){hass.states={'vacuum.demo':state(value==='missing'?'cleaning':value), 'sensor.demo_battery':state('78'), 'sensor.demo_progress':state(value==='docked'?'100':'42'), 'sensor.demo_area':state('34.8',{unit_of_measurement:'m²'}), 'sensor.demo_time':state('26',{unit_of_measurement:'min'}), 'binary_sensor.demo_water':state(value==='error'?'on':'off'), 'sensor.demo_error':state(value==='error'?'main_brush_jammed':'none'), 'sensor.demo_dock':state('ok'),...Object.fromEntries(rooms.map(room=>[room.entity,state('unknown')]))};if(value==='missing')for(const id of Object.keys(hass.states).filter(id=>id.startsWith('sensor.')))hass.states[id]=state('unavailable');if(value==='unavailable')for(const id of Object.keys(hass.states))hass.states[id]=state('unavailable');cards.forEach(card=>card.hass=hass);}
+scenario('cleaning');
+const editor=document.getElementById('editor');editor.setConfig(config);editor.hass=hass;editor.addEventListener('config-changed',event=>{cards[0].setConfig(event.detail.config);});
+document.getElementById('theme').onclick=()=>document.body.classList.toggle('dark');
+document.getElementById('scenario').onchange=event=>scenario(event.target.value);
+document.getElementById('width').onchange=event=>document.getElementById('compact-wrap').style.width=event.target.value+'px';
 </script>
 </html>

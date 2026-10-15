@@ -1,39 +1,92 @@
 # Vacuum Card
 
-Home Assistant dashboard card for vacuum entities. The initial scaffold displays the vacuum state and opens its details. Cleaning controls, maps and integration-specific features are not implemented yet.
+A theme-native Home Assistant card for Roborock room cleaning. Choose an existing cleaning button or script for each room, give it a name and icon, and run it directly from the dashboard. Status, battery, optional cleaning progress, area/time and water/vacuum/dock alerts share one card.
 
-## Install with HACS
+## Installation
+
+### Manual
+
+Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.2.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
+
+### HACS (after public publication)
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jancrab&repository=homeassistant-vacuum-card&category=plugin)
 
-After the repository is published publicly, add it as a custom Dashboard repository in HACS, download the card and reload the browser. Check the module resource: `/hacsfiles/homeassistant-vacuum-card/homeassistant-vacuum-card.js`.
+Once this repository is published publicly, add it as a custom Dashboard repository in HACS. The module resource is `/hacsfiles/homeassistant-vacuum-card/homeassistant-vacuum-card.js`. This local project has not been published.
 
-## Manual installation
+## Configure in the visual editor
 
-Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.1.0` as a JavaScript module under Settings > Dashboards > Resources, then reload. On updates replace the file and update the version query on the existing resource.
+1. Add **Vacuum Card** and select your vacuum entity.
+2. Under **Rooms**, select **Add room**. Choose the existing cleaning control, for example `button.wohnzimmer_roborock_qrevo_master_bad`.
+3. Enter **Bad** as the room name and choose `mdi:shower` as the icon. Add other rooms the same way. Move up/down and Remove manage the list.
+4. Expand **Statistics and alerts** and explicitly select the robot's battery, cleaning progress, status and error sensors as needed.
+5. Save. Tapping a room starts its configured routine immediately.
+
+Names and icons fall back to the selected control's friendly name/icon. Both remain visible on every room tile. No entities are guessed or selected from other robots. The editor uses HA's native entity and icon pickers. The compact layout has two room columns; wide uses three when the actual card is at least 440 px wide.
+
+## YAML example
+
+Replace `vacuum.your_robot` with the real vacuum entity. The bathroom control below is the supplied existing entity; the card does not create it.
 
 ```yaml
 type: custom:homeassistant-vacuum-card
-entity: vacuum.example
-layout: compact # or wide
+entity: vacuum.your_robot
+name: Roborock Qrevo Master
+layout: compact
+rooms:
+  - name: Bad
+    icon: mdi:shower
+    entity: button.wohnzimmer_roborock_qrevo_master_bad
 ```
 
-Choose the entity and layout in the visual editor. An optional name overrides friendly_name. Theme colors, card background, borders and typography use Home Assistant variables.
+Optional sensor mappings (replace every example with an actual entity or omit it):
 
-## Design guidance
+```yaml
+status_entity: sensor.your_robot_status
+battery_entity: sensor.your_robot_battery
+progress_entity: sensor.your_robot_cleaning_progress
+cleaning_area_entity: sensor.your_robot_cleaning_area
+cleaning_time_entity: sensor.your_robot_cleaning_time
+water_shortage_entity: binary_sensor.your_robot_water_shortage
+vacuum_error_entity: sensor.your_robot_vacuum_error
+dock_error_entity: sensor.your_robot_dock_error
+```
 
-The starter includes a reusable [design style guide](docs/design-style.md) and [adaptation prompt](docs/design-adaptation-prompt.md), both in German. They describe atmospheric minimalism, Home Assistant theme integration, device-specific backgrounds, restrained animation and accessible controls. Apply them when implementing the card UI, while honoring explicit design requirements. The initial scaffold remains a small entity display.
+| Setting | Behavior when omitted |
+| --- | --- |
+| `status_entity` | Use the vacuum state. |
+| `battery_entity` | Use the vacuum's `battery_level` attribute, if available. |
+| `progress_entity` | Use the vacuum's `cleaning_progress` attribute, if available. |
+| `cleaning_area_entity`, `cleaning_time_entity` | Hide these optional statistics. |
+| `water_shortage_entity`, `vacuum_error_entity`, `dock_error_entity` | No sensor alert for that source. A vacuum `error` state or `error` attribute still appears. |
 
-## Development
+Battery and progress accept only numeric 0–100 values. Missing values never become zero. A configured but unavailable source does not silently fall back to another source. Progress is labeled **Last reported progress** outside the vacuum's `cleaning` state; no completion percentage is estimated. Area/time reflect the values reported by HA and may refer to the last cleaning run.
+
+Water shortage `on` shows a warning. Error sensor states other than `none`, `ok`, `no_error`, `no error`, `0`, `off` or `false` show their reported error. Missing/unknown/unavailable configured error sensors show a separate **Sensor unavailable** notice. HA's state formatter supplies localized entity values where available; card labels are English.
+
+## How room controls work
+
+- `button.*` calls `button.press` with exactly that entity ID. An `unknown` button timestamp is valid for a button that has never been pressed.
+- `script.*` calls `script.turn_on` with exactly that entity ID. A running script is disabled until it stops.
+- Missing/unavailable controls and an unavailable robot disable room actions. While a call is in flight, all room tiles on that card are disabled to prevent duplicate/concurrent requests.
+- Failures are shown on the card and can be retried. **Command sent** acknowledges the service call; only HA updates the displayed robot state.
+
+The card runs the existing routine as configured in Home Assistant/Roborock. It does not determine room IDs, change maps or override that routine's cleaning settings. It contains no browser-based schedule; use Home Assistant automations to run the same buttons on a schedule. The robot icon opens HA's more-info dialog for the vacuum.
+
+Supported HA behavior is documented in the official [button integration](https://www.home-assistant.io/integrations/button/), [script integration](https://www.home-assistant.io/integrations/script/) and [Roborock integration](https://www.home-assistant.io/integrations/roborock/).
+
+## Development and verification
 
 ```sh
-npm install
+npm ci
 npm run check
 npm run dev
 ```
 
-Commit the generated package-lock.json and dist bundle. Later installs use npm ci. Open http://127.0.0.1:4173 for the real built card with simulated state. Tests and previews do not prove real-device behavior.
+Open `http://127.0.0.1:4173` for the built card with simulated data, light/dark themes, 280/360/480 px widths, error/offline/missing-data scenarios, a service log and simulated editor inputs. Icons and selectors in this standalone demo are local stand-ins for HA's native components. No command reaches a real robot.
 
-Read [AGENTS.md](AGENTS.md) and [the working guide](docs/working-guide.md) for editor, device and release lessons. For an authorized release, synchronize package/lock versions and changelog, rebuild and tag v0.1.0. GitHub workflows test/build, validate HACS for public repos and publish the JavaScript release asset.
+Automated tests cover exact button/script targets, in-flight serialization, failure/retry, unavailable controls, zero/missing metrics, sensor alerts, reused `hass`, context subscription cleanup and visual-editor configuration preservation. Browser checks exercise the built bundle. Real Home Assistant editor startup and physical robot operation still require verification in the target installation.
+
+Commit `package-lock.json` and the built bundle with source changes. CI verifies the committed build; the release workflow requires a matching version tag. Public HACS validation and publication have not been run locally. See [AGENTS.md](AGENTS.md), [the working guide](docs/working-guide.md) and [the design guide](docs/design-style.md).
 
 MIT; see LICENSE.

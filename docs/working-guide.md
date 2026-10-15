@@ -1,6 +1,14 @@
 # Project workflow
 
-The baseline uses Lit, a bundled ES module, a native HA form editor, node:test and Happy DOM. The initial card displays entity state and opens more-info; add the requested domain controls with capability checks and error feedback.
+The card uses Lit, a bundled ES module, a native HA form editor, node:test and Happy DOM. Room tiles call explicitly configured button.press or script.turn_on targets. Sensor mappings are explicit; do not guess entities from names.
+
+## Room controls and sensor semantics
+
+A button's state is its last-pressed timestamp. `unknown` may mean never pressed, so do not disable that button as unavailable. Keep unavailable/missing entities disabled. Serialize in-flight calls per card, show failures and acknowledge only the command; never optimistically claim the robot started cleaning.
+
+Allow unfinished room rows in the native editor, preserve unknown config fields, and never execute a control when editing settings. Battery/progress values must be finite percentages, preserving true zero. Explicit unavailable sensors must not fall back to stale vacuum attributes. Roborock error sensors use raw `none`/`ok` values; binary water shortage uses `on`/`off`. Unknown error data is not proof of a healthy robot.
+
+The demo's ha-form and ha-icon are labeled stand-ins. Mocked and browser tests verify card behavior, not Home Assistant's native selectors or physical cleaning. Room routines already encode their map and cleaning parameters; the card must not invent them.
 
 ## Editor and state
 
