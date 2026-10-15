@@ -170,3 +170,62 @@ test('fresh native editor bootstrap, room editing/order/removal, sensor settings
   assert.deepEqual(editor.shadowRoot.querySelector('.room-form').schema[0].selector.entity.domain, ['button', 'script']);
   await customElements.get('homeassistant-vacuum-card').getConfigElement(); assert.equal(loads, 1);
 });
+
+test('robot icon follows live state and never infers charging from docked alone', async () => {
+  const card = fixture({ charging_entity: 'binary_sensor.charging' });
+  for (const [state, charging, expected] of [
+    ['docked', 'off', 'docked'], ['docked', 'on', 'charging'],
+    ['docked', 'unavailable', 'docked'], ['cleaning', 'on', 'cleaning'],
+    ['returning', 'off', 'returning'], ['paused', 'on', 'paused'],
+    ['error', 'on', 'error'], ['unavailable', 'on', 'offline'], ['idle', 'off', 'idle'],
+  ]) {
+    card.hass.states['vacuum.example'].state = state;
+    card.hass.states['binary_sensor.charging'] = { state: charging };
+    card.hass = card.hass; await card.updateComplete;
+    assert.ok(card.shadowRoot.querySelector(`.robot-${expected}`), `${state}/${charging}: ${expected}`);
+    if (expected === 'charging') assert.equal(card.shadowRoot.querySelector('h1').textContent, 'Charging');
+  }
+  card.setConfig({ entity: 'vacuum.example', status_entity: 'sensor.status' });
+  card.hass.states['vacuum.example'].state = 'docked';
+  card.hass.states['sensor.status'] = { state: 'charging' };
+  card.hass = card.hass; await card.updateComplete;
+  assert.ok(card.shadowRoot.querySelector('.robot-charging'));
+  card.hass.states['sensor.status'].state = 'charging_complete';
+  card.hass = card.hass; await card.updateComplete;
+  assert.ok(card.shadowRoot.querySelector('.robot-docked'));
+});
+
+test('motion pauses offscreen/in hidden tabs and observers are released on disconnect', async () => {
+  let intersection, observed = 0, disconnected = 0;
+  const originalObserver = globalThis.IntersectionObserver;
+  const hiddenDescriptor = Object.getOwnPropertyDescriptor(document, 'hidden');
+  globalThis.IntersectionObserver = class {
+    constructor(callback) { intersection = callback; }
+    observe() { observed++; }
+    disconnect() { disconnected++; }
+  };
+  try {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    const card = fixture();
+    assert.equal(card.hasAttribute('motion-paused'), true);
+    intersection([{ isIntersecting: true }]);
+    assert.equal(card.hasAttribute('motion-paused'), false);
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    assert.equal(card.hasAttribute('motion-paused'), true);
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+    intersection([{ isIntersecting: false }]);
+    assert.equal(card.hasAttribute('motion-paused'), true);
+    card.remove(); assert.equal(disconnected, 1);
+    document.dispatchEvent(new Event('visibilitychange'));
+    assert.equal(card.hasAttribute('motion-paused'), true);
+    document.body.append(card); assert.equal(observed, 2);
+    card.remove(); assert.equal(disconnected, 2);
+  } finally {
+    if (originalObserver === undefined) delete globalThis.IntersectionObserver;
+    else globalThis.IntersectionObserver = originalObserver;
+    if (hiddenDescriptor) Object.defineProperty(document, 'hidden', hiddenDescriptor);
+    else delete document.hidden;
+  }
+});

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Add a small animated robot icon for cleaning, returning and confirmed charging, with static docked, paused, idle, error and offline symbols.
+- Add an optional charging binary-sensor mapping to the visual editor; docked alone never implies charging.
+- Make compact layout substantially denser while retaining room labels, error messages and 44 px button targets.
+- Pause animation outside the viewport and in hidden tabs, honor reduced motion and clean up observers/listeners on disconnect.
+
 ## 0.2.0
 
 - Add configurable room tiles for existing cleaning buttons/scripts, with names, icons and visual-editor add/remove/reorder controls.

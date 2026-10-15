@@ -10,8 +10,22 @@ export const cardStyles = css`
   .hero { position: relative; padding: 24px; isolation: isolate; background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--vacuum-accent) 12%, transparent), transparent 70%); }
   .hero::before { content: ''; position: absolute; width: 160px; height: 160px; border: 1px solid color-mix(in srgb, var(--vacuum-accent) 16%, transparent); border-radius: 50%; right: -70px; top: -65px; z-index: -1; pointer-events: none; }
   .heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .identity { min-width: 0; }
   .name { font-size: 14px; color: var(--vacuum-muted); overflow-wrap: anywhere; }
   .details { display: grid; place-items: center; width: 44px; flex: 0 0 44px; border-radius: 50%; background: color-mix(in srgb, var(--vacuum-accent) 9%, transparent); color: var(--vacuum-accent); }
+  .robot { width: 32px; height: 32px; overflow: visible; }
+  .robot-body, .brush, .charge { transform-box: fill-box; transform-origin: center; }
+  .robot-cleaning .robot-body { animation: vacuum-clean 2.4s ease-in-out infinite; }
+  .robot-cleaning .brush { animation: vacuum-brush 3s linear infinite; }
+  .robot-charging .charge { animation: vacuum-charge 2s ease-in-out infinite; }
+  .robot-returning .robot-body { animation: vacuum-return 2.4s ease-in-out infinite; }
+  .robot-error { color: var(--vacuum-error); }
+  .robot-offline { color: var(--vacuum-muted); }
+  :host([motion-paused]) .robot * { animation-play-state: paused; }
+  @keyframes vacuum-clean { 0%, 100% { transform: translateX(-1px) rotate(-7deg); } 50% { transform: translateX(2px) rotate(7deg); } }
+  @keyframes vacuum-brush { to { transform: rotate(360deg); } }
+  @keyframes vacuum-charge { 0%, 100% { opacity: .45; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.1); } }
+  @keyframes vacuum-return { 0%, 100% { transform: translateY(1px); } 50% { transform: translateY(-2px); } }
   h1 { margin: 12px 0 0; font-size: clamp(28px, 9cqi, 40px); line-height: 1.15; font-weight: 500; letter-spacing: -.04em; overflow-wrap: anywhere; }
   .robot-state { margin: 8px 0 0; color: var(--vacuum-muted); font-size: 13px; }
   .stats { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-top: 24px; }
@@ -46,5 +60,26 @@ export const cardStyles = css`
   .feedback.error { color: var(--vacuum-error); }
   @container (min-width: 440px) { .wide .rooms { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @container (max-width: 300px) { .hero, .rooms-section { padding: 16px; } .alerts { padding: 0 16px 16px; } .room { padding: 12px; } }
-  @media (prefers-reduced-motion: reduce) { .room { transition: none; } }
+  .compact .hero { padding: 12px 16px; }
+  .compact .name { font-size: 12px; }
+  .compact h1 { font-size: 22px; letter-spacing: -.02em; margin-top: 3px; }
+  .compact .robot-state { font-size: 11px; margin: 4px 0 0; }
+  .compact .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .compact .stat span { font-size: 11px; margin-bottom: 2px; }
+  .compact .stat strong { font-size: 15px; }
+  .compact .progress { margin-top: 12px; }
+  .compact .progress-label { margin-bottom: 5px; font-size: 11px; }
+  .compact .rooms-section { padding: 12px 16px; }
+  .compact h2 { font-size: 12px; margin-bottom: 8px; }
+  .compact .rooms-intro, .compact .room-caption { display: none; }
+  .compact .rooms { gap: 6px; }
+  .compact .room { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 4px 8px; min-height: 44px; padding: 8px; border-radius: 10px; }
+  .compact .room ha-icon { --mdc-icon-size: 20px; width: 20px; height: 20px; }
+  .compact .room span { font-size: 12px; }
+  .compact .room-message { grid-column: 1 / -1; font-size: 11px; }
+  .compact .alerts { padding: 0 16px 8px; }
+  .compact .alert { padding: 8px; gap: 8px; font-size: 12px; margin-top: 6px; }
+  .compact .alert strong { display: inline; margin-right: 6px; }
+  .compact .feedback { margin-top: 8px; font-size: 12px; }
+  @media (prefers-reduced-motion: reduce) { .room { transition: none; } .robot * { animation: none !important; } }
 `;

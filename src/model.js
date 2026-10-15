@@ -1,5 +1,5 @@
 export const entityPattern = /^[a-z][a-z0-9_]*\.[a-z0-9_]+$/;
-export const sensorFields = ['status_entity', 'battery_entity', 'progress_entity', 'cleaning_area_entity', 'cleaning_time_entity', 'vacuum_error_entity', 'dock_error_entity', 'water_shortage_entity'];
+export const sensorFields = ['status_entity', 'charging_entity', 'battery_entity', 'progress_entity', 'cleaning_area_entity', 'cleaning_time_entity', 'vacuum_error_entity', 'dock_error_entity', 'water_shortage_entity'];
 
 export function validateConfig(config) {
   if (!config || !entityPattern.test(config.entity || '') || !config.entity.startsWith('vacuum.')) throw new Error('Select a valid vacuum entity.');
@@ -19,6 +19,23 @@ export function validateConfig(config) {
   return { layout: 'compact', ...config, rooms };
 }
 export const isUnavailable = state => !state || ['unknown', 'unavailable', ''].includes(state.state);
+export function robotMode(config, states) {
+  const vacuum = states[config.entity];
+  if (isUnavailable(vacuum)) return 'offline';
+  const state = vacuum.state;
+  if (state === 'error') return 'error';
+  if (state === 'cleaning') return 'cleaning';
+  if (state === 'returning') return 'returning';
+  if (state === 'paused') return 'paused';
+  if (['docked', 'idle', 'charging'].includes(state)) {
+    // Docked alone does not prove charging; use an explicit live signal.
+    const charging = config.charging_entity
+      ? states[config.charging_entity]?.state === 'on'
+      : state === 'charging' || states[config.status_entity]?.state === 'charging';
+    if (charging) return 'charging';
+  }
+  return state === 'docked' ? 'docked' : 'idle';
+}
 export function humanize(value) {
   const text = String(value ?? '').replaceAll('_', ' ');
   return text ? text[0].toUpperCase() + text.slice(1) : 'Unknown';

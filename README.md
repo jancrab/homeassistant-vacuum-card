@@ -6,7 +6,7 @@ A theme-native Home Assistant card for Roborock room cleaning. Choose an existin
 
 ### Manual
 
-Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.2.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
+Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.3.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
 
 ### HACS (after public publication)
 
@@ -22,7 +22,11 @@ Once this repository is published publicly, add it as a custom Dashboard reposit
 4. Expand **Statistics and alerts** and explicitly select the robot's battery, cleaning progress, status and error sensors as needed.
 5. Save. Tapping a room starts its configured routine immediately.
 
-Names and icons fall back to the selected control's friendly name/icon. Both remain visible on every room tile. No entities are guessed or selected from other robots. The editor uses HA's native entity and icon pickers. The compact layout has two room columns; wide uses three when the actual card is at least 440 px wide.
+Names and icons fall back to the selected control's friendly name/icon. Both remain visible on every room tile. No entities are guessed or selected from other robots. The editor uses HA's native entity and icon pickers.
+
+Choose **compact** under **Layout** for a dense status header, a single statistics row and two columns of room buttons with icons beside their names. Compact is the default. **Wide** keeps the spacious header and larger tiles, with three columns when the actual card is at least 440 px wide. All buttons retain a minimum 44 px target height; pending, unavailable and error messages stay visible in both modes.
+
+The small robot icon moves while cleaning or returning, and shows a pulsing lightning bolt while charging. Docked, paused, error, offline and idle states have distinct static symbols. Select **Charging binary sensor** under **Statistics and alerts** to use Roborock's charging entity. Docked alone does not trigger charging animation. Without that mapping, an explicit `charging` vacuum/detailed status can supply the signal. Animation pauses offscreen and in hidden browser tabs, and becomes static with the system's reduced-motion preference. The icon still opens robot details.
 
 ## YAML example
 
@@ -43,6 +47,7 @@ Optional sensor mappings (replace every example with an actual entity or omit it
 
 ```yaml
 status_entity: sensor.your_robot_status
+charging_entity: binary_sensor.your_robot_charging
 battery_entity: sensor.your_robot_battery
 progress_entity: sensor.your_robot_cleaning_progress
 cleaning_area_entity: sensor.your_robot_cleaning_area
@@ -55,6 +60,7 @@ dock_error_entity: sensor.your_robot_dock_error
 | Setting | Behavior when omitted |
 | --- | --- |
 | `status_entity` | Use the vacuum state. |
+| `charging_entity` | Animate charging only when the vacuum or configured detailed status explicitly reports `charging`. |
 | `battery_entity` | Use the vacuum's `battery_level` attribute, if available. |
 | `progress_entity` | Use the vacuum's `cleaning_progress` attribute, if available. |
 | `cleaning_area_entity`, `cleaning_time_entity` | Hide these optional statistics. |

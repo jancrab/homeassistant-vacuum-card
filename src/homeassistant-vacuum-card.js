@@ -1,5 +1,6 @@
 import { LitElement, html, nothing } from 'lit';
-import { validateConfig, isUnavailable, formatState, metric, roomName, roomAction, roomBlocked, alerts } from './model.js';
+import { validateConfig, isUnavailable, formatState, metric, roomName, roomAction, roomBlocked, alerts, robotMode, humanize } from './model.js';
+import { robotIcon } from './robot-icon.js';
 import { cardStyles } from './styles.js';
 import './editor.js';
 export { validateConfig } from './model.js';
@@ -14,6 +15,17 @@ export class VacuumCard extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this._inViewport = typeof IntersectionObserver === 'undefined';
+    this._visibilityChanged = () => this.toggleAttribute('motion-paused', document.hidden || !this._inViewport);
+    document.addEventListener('visibilitychange', this._visibilityChanged);
+    if (typeof IntersectionObserver !== 'undefined') {
+      this._observer = new IntersectionObserver(entries => {
+        this._inViewport = entries.some(entry => entry.isIntersecting);
+        this._visibilityChanged();
+      });
+      this._observer.observe(this);
+    }
+    this._visibilityChanged();
     const request = new CustomEvent('context-request', { bubbles: true, composed: true, cancelable: true });
     request.context = 'states';
     request.subscribe = true;
@@ -21,6 +33,9 @@ export class VacuumCard extends LitElement {
     this.dispatchEvent(request);
   }
   disconnectedCallback() {
+    document.removeEventListener('visibilitychange', this._visibilityChanged);
+    this._observer?.disconnect(); this._observer = undefined;
+    this.setAttribute('motion-paused', '');
     this._unsubscribe?.(); this._unsubscribe = undefined; this._states = undefined;
     super.disconnectedCallback();
   }
@@ -36,7 +51,10 @@ export class VacuumCard extends LitElement {
     }
     return document.createElement('homeassistant-vacuum-card-editor');
   }
-  getCardSize() { return 4 + Math.ceil((this._config?.rooms.length || 0) / 2) * 2; }
+  getCardSize() {
+    const rows = Math.ceil((this._config?.rooms.length || 0) / (this._config?.layout === 'wide' ? 3 : 2));
+    return this._config?.layout === 'compact' ? 3 + rows : 4 + rows * 2;
+  }
   getGridOptions() { return { columns: this._config?.layout === 'wide' ? 12 : 6, min_columns: 6 }; }
   _details() {
     this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: this._config.entity }, bubbles: true, composed: true }));
@@ -63,11 +81,14 @@ export class VacuumCard extends LitElement {
     const battery = metric(config, states, 'battery_entity', 'battery_level');
     const progress = metric(config, states, 'progress_entity', 'cleaning_progress');
     const issues = alerts(config, states, this.hass), active = vacuum?.state === 'cleaning';
+    const mode = robotMode(config, states);
     return html`
       <ha-card class=${config.layout}>
         <div class="hero">
-          <div class="heading"><span class="name">${config.name || vacuum?.attributes?.friendly_name || config.entity}</span><button class="details" aria-label="Open robot details" @click=${this._details}><ha-icon icon="mdi:robot-vacuum" aria-hidden="true"></ha-icon></button></div>
-          <h1 role="status">${isUnavailable(vacuum) ? 'Unavailable' : formatState(this.hass, status)}</h1>
+          <div class="heading">
+            <div class="identity"><span class="name">${config.name || vacuum?.attributes?.friendly_name || config.entity}</span><h1 role="status">${isUnavailable(vacuum) ? 'Unavailable' : mode === 'charging' && !config.status_entity ? 'Charging' : formatState(this.hass, status)}</h1></div>
+            <button class="details" aria-label="Open robot details" title=${`${humanize(mode)} · Open robot details`} @click=${this._details}>${robotIcon(mode)}</button>
+          </div>
           ${config.status_entity && status?.state !== vacuum?.state && !isUnavailable(vacuum) ? html`<p class="robot-state">${formatState(this.hass, vacuum)}</p>` : nothing}
           <div class="stats">
             ${this._stat('Battery', battery === null ? '—' : `${battery} %`)}
@@ -77,10 +98,10 @@ export class VacuumCard extends LitElement {
         </div>
         ${issues.length ? html`<div class="alerts">${issues.map(issue => html`<div class="alert ${issue.unavailable ? 'unavailable' : ''}" role=${issue.unavailable ? 'status' : 'alert'}><ha-icon icon=${issue.unavailable ? 'mdi:information-outline' : 'mdi:alert-circle-outline'} aria-hidden="true"></ha-icon><div><strong>${issue.label}</strong>${issue.text}</div></div>`)}</div>` : nothing}
         <section class="rooms-section" aria-label="Room cleaning">
-          <h2>Clean a room</h2><p class="hint">${config.rooms.length ? 'Tap a room to start its cleaning routine.' : 'Add rooms and their cleaning controls in the card editor.'}</p>
+          <h2>Clean a room</h2><p class="hint ${config.rooms.length ? 'rooms-intro' : ''}">${config.rooms.length ? 'Tap a room to start its cleaning routine.' : 'Add rooms and their cleaning controls in the card editor.'}</p>
           <div class="rooms">${config.rooms.map((room, index) => {
             const name = roomName(room, states), blocked = roomBlocked(room, config, states, this.hass), pending = this._pending === index;
-            return html`<button class="room" ?disabled=${Boolean(blocked) || this._pending !== undefined} aria-label=${`Clean ${name}`} aria-busy=${String(pending)} title=${blocked || `Clean ${name}`} @click=${() => this._clean(room, index)}><ha-icon icon=${room.icon || states[room.entity]?.attributes?.icon || 'mdi:floor-plan'} aria-hidden="true"></ha-icon><span>${name}</span><small>${pending ? 'Sending…' : blocked || 'Start cleaning'}</small></button>`;
+            return html`<button class="room" ?disabled=${Boolean(blocked) || this._pending !== undefined} aria-label=${`Clean ${name}`} aria-busy=${String(pending)} title=${blocked || `Clean ${name}`} @click=${() => this._clean(room, index)}><ha-icon icon=${room.icon || states[room.entity]?.attributes?.icon || 'mdi:floor-plan'} aria-hidden="true"></ha-icon><span>${name}</span><small class=${pending || blocked ? 'room-message' : 'room-caption'}>${pending ? 'Sending…' : blocked || 'Start cleaning'}</small></button>`;
           })}</div>
           <p class="feedback ${this._failed ? 'error' : ''}" role=${this._failed ? 'alert' : 'status'} aria-live="polite">${this._feedback || ''}</p>
         </section>

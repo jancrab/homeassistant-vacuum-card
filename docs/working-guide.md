@@ -12,6 +12,8 @@ The demo's ha-form and ha-icon are labeled stand-ins. Mocked and browser tests v
 
 ## Editor and state
 
+The robot icon follows confirmed vacuum state. Charging uses an explicitly selected binary sensor, or an explicit charging status when no charging sensor is configured; docked alone is not charging. Active cleaning/returning/paused/error and offline states take precedence over a stale charging sensor. Keep CSS animation disabled for reduced motion and paused offscreen/in hidden tabs. Release the IntersectionObserver and visibility listener on disconnect and restore them on reconnect.
+
 Native HA forms/selectors can be lazy-loaded. Keep getConfigElement's native editor loading until a tested replacement exists. HA can reuse its hass object, so rendering must still update. The starter accepts both hass and the states context; unsubscribe when disconnected.
 
 Discover related entities through shared device_id where available; do not guess unrelated devices. Use exact preset strings and supported_features from the actual integration. A writable number's name does not prove that it measures live device position. Validate before actions; stop commands should not wait behind optional polling or profile validation.
