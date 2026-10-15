@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vacuum Card preview</title>
+<style>body{margin:32px;background:#111418;color:#e5e7eb;font:14px system-ui;--primary-text-color:#e5e7eb;--secondary-text-color:#a0a8b3;--card-background-color:#1c2128;--divider-color:#343c47;--primary-color:#80bfff}main{max-width:640px;margin:auto}homeassistant-vacuum-card{display:block;margin:16px 0}p{color:#a0a8b3}input{font:inherit;min-height:44px}</style>
+<main><h1>Vacuum Card</h1><p>Built card with simulated state. No Home Assistant connection.</p><homeassistant-vacuum-card id="compact"></homeassistant-vacuum-card><homeassistant-vacuum-card id="wide"></homeassistant-vacuum-card><label>Simulated state <input id="state" value="docked"></label></main>
+<script type="module">
+await import('../dist/homeassistant-vacuum-card.js');
+const hass={states:{'vacuum.example':{state:'docked',attributes:{friendly_name:'Example vacuum'}}}};
+const cards=['compact','wide'].map(layout=>{const card=document.getElementById(layout);card.setConfig({entity:'vacuum.example',layout});card.hass=hass;return card;});
+document.getElementById('state').addEventListener('input',event=>{hass.states['vacuum.example']={...hass.states['vacuum.example'],state:event.target.value};cards.forEach(card=>card.hass=hass);});
+</script>
+</html>

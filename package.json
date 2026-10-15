@@ -1,0 +1,12 @@
+{
+  "name": "homeassistant-vacuum-card",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Home Assistant custom dashboard card",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "scripts": { "build": "node scripts/build.mjs", "test": "node --test", "check": "npm test && npm run build", "dev": "node scripts/dev.mjs" },
+  "dependencies": { "lit": "^3.3.3" },
+  "devDependencies": { "esbuild": "^0.28.2", "happy-dom": "^21.0.1" }
+}
