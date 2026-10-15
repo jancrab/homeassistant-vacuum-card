@@ -28,10 +28,10 @@ export const cardStyles = css`
   @keyframes vacuum-return { 0%, 100% { transform: translateY(1px); } 50% { transform: translateY(-2px); } }
   h1 { margin: 12px 0 0; font-size: clamp(28px, 9cqi, 40px); line-height: 1.15; font-weight: 500; letter-spacing: -.04em; overflow-wrap: anywhere; }
   .robot-state { margin: 8px 0 0; color: var(--vacuum-muted); font-size: 13px; }
-  .stats { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-top: 24px; }
-  .stat { flex: 1 1 80px; min-width: 0; }
-  .stat span { display: block; font-size: 12px; color: var(--vacuum-muted); margin-bottom: 4px; }
-  .stat strong { font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; }
+  .stat { display: flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; }
+  .stat ha-icon { --mdc-icon-size: 16px; width: 16px; height: 16px; flex: 0 0 16px; color: var(--vacuum-muted); }
+  .stat strong { font-size: 14px; line-height: 20px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .progress { margin-top: 24px; }
   .progress-label { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--vacuum-muted); margin-bottom: 8px; }
   progress { display: block; width: 100%; height: 5px; border: 0; border-radius: 8px; overflow: hidden; background: color-mix(in srgb, var(--vacuum-accent) 12%, transparent); accent-color: var(--vacuum-accent); }
@@ -64,10 +64,9 @@ export const cardStyles = css`
   .compact .name { font-size: 12px; }
   .compact h1 { font-size: 22px; letter-spacing: -.02em; margin-top: 3px; }
   .compact .robot-state { font-size: 11px; margin: 4px 0 0; }
-  .compact .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
-  .compact .stat span { font-size: 11px; margin-bottom: 2px; }
-  .compact .stat strong { font-size: 15px; }
-  .compact .progress { margin-top: 12px; }
+  .compact .stats { gap: 6px 14px; margin-top: 8px; }
+  .compact .stat strong { font-size: 12px; }
+  .compact .progress { margin-top: 8px; }
   .compact .progress-label { margin-bottom: 5px; font-size: 11px; }
   .compact .rooms-section { padding: 12px 16px; }
   .compact h2 { font-size: 12px; margin-bottom: 8px; }
@@ -81,5 +80,13 @@ export const cardStyles = css`
   .compact .alert { padding: 8px; gap: 8px; font-size: 12px; margin-top: 6px; }
   .compact .alert strong { display: inline; margin-right: 6px; }
   .compact .feedback { margin-top: 8px; font-size: 12px; }
+  .resting .hero { padding: 8px 12px; }
+  .resting .hero::before { display: none; }
+  .resting .heading { gap: 8px; }
+  .resting .identity { flex: 1; }
+  .resting .heading > .stat { flex: 0 0 auto; }
+  .resting h1 { font-size: 18px; }
+  .resting .name { font-size: 11px; }
+  .resting .rooms-section { padding-top: 8px; }
   @media (prefers-reduced-motion: reduce) { .room { transition: none; } .robot * { animation: none !important; } }
 `;

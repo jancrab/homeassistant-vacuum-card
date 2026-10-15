@@ -53,6 +53,7 @@ export class VacuumCard extends LitElement {
   }
   getCardSize() {
     const rows = Math.ceil((this._config?.rooms.length || 0) / (this._config?.layout === 'wide' ? 3 : 2));
+    if (this._config && !['cleaning', 'returning'].includes(robotMode(this._config, this.states))) return 2 + rows;
     return this._config?.layout === 'compact' ? 3 + rows : 4 + rows * 2;
   }
   getGridOptions() { return { columns: this._config?.layout === 'wide' ? 12 : 6, min_columns: 6 }; }
@@ -73,7 +74,9 @@ export class VacuumCard extends LitElement {
       }
     } finally { this._pending = undefined; }
   }
-  _stat(label, value) { return html`<div class="stat"><span>${label}</span><strong>${value}</strong></div>`; }
+  _stat(label, value, icon) {
+    return html`<div class="stat" data-metric=${label} title=${`${label}: ${value}`} aria-label=${`${label}: ${value}`}><ha-icon icon=${icon} aria-hidden="true"></ha-icon><strong>${value}</strong></div>`;
+  }
   render() {
     if (!this._config) return nothing;
     const config = this._config, states = this.states, vacuum = states[config.entity];
@@ -82,19 +85,22 @@ export class VacuumCard extends LitElement {
     const progress = metric(config, states, 'progress_entity', 'cleaning_progress');
     const issues = alerts(config, states, this.hass), active = vacuum?.state === 'cleaning';
     const mode = robotMode(config, states);
+    const resting = !['cleaning', 'returning'].includes(mode);
+    const batteryStat = this._stat('Battery', battery === null ? '—' : `${battery} %`, mode === 'charging' ? 'mdi:battery-charging' : 'mdi:battery-outline');
     return html`
-      <ha-card class=${config.layout}>
+      <ha-card class=${`${config.layout}${resting ? ' compact resting' : ''}`}>
         <div class="hero">
           <div class="heading">
             <div class="identity"><span class="name">${config.name || vacuum?.attributes?.friendly_name || config.entity}</span><h1 role="status">${isUnavailable(vacuum) ? 'Unavailable' : mode === 'charging' && !config.status_entity ? 'Charging' : formatState(this.hass, status)}</h1></div>
+            ${resting ? batteryStat : nothing}
             <button class="details" aria-label="Open robot details" title=${`${humanize(mode)} · Open robot details`} @click=${this._details}>${robotIcon(mode)}</button>
           </div>
-          ${config.status_entity && status?.state !== vacuum?.state && !isUnavailable(vacuum) ? html`<p class="robot-state">${formatState(this.hass, vacuum)}</p>` : nothing}
-          <div class="stats">
-            ${this._stat('Battery', battery === null ? '—' : `${battery} %`)}
-            ${[['cleaning_area_entity', 'Cleaned area'], ['cleaning_time_entity', 'Cleaning time']].map(([field, label]) => config[field] ? this._stat(label, isUnavailable(states[config[field]]) ? '—' : this.hass?.formatEntityState ? formatState(this.hass, states[config[field]]) : `${states[config[field]].state} ${states[config[field]].attributes?.unit_of_measurement || ''}`) : nothing)}
+          ${!resting && config.status_entity && status?.state !== vacuum?.state && !isUnavailable(vacuum) ? html`<p class="robot-state">${formatState(this.hass, vacuum)}</p>` : nothing}
+          ${!resting ? html`<div class="stats">
+            ${batteryStat}
+            ${[['cleaning_area_entity', 'Cleaned area', 'mdi:ruler-square'], ['cleaning_time_entity', 'Cleaning time', 'mdi:timer-outline']].map(([field, label, icon]) => config[field] ? this._stat(label, isUnavailable(states[config[field]]) ? '—' : this.hass?.formatEntityState ? formatState(this.hass, states[config[field]]) : `${states[config[field]].state} ${states[config[field]].attributes?.unit_of_measurement || ''}`, icon) : nothing)}
           </div>
-          ${progress !== null ? html`<div class="progress"><div class="progress-label"><span>${active ? 'Cleaning progress' : 'Last reported progress'}</span><span>${progress} %</span></div><progress aria-label="Cleaning progress" max="100" .value=${progress}></progress></div>` : config.progress_entity ? html`<p class="hint">Cleaning progress unavailable</p>` : nothing}
+          ${progress !== null ? html`<div class="progress"><div class="progress-label"><span>${active ? 'Cleaning progress' : 'Last reported progress'}</span><span>${progress} %</span></div><progress aria-label="Cleaning progress" max="100" .value=${progress}></progress></div>` : config.progress_entity ? html`<p class="hint">Cleaning progress unavailable</p>` : nothing}` : nothing}
         </div>
         ${issues.length ? html`<div class="alerts">${issues.map(issue => html`<div class="alert ${issue.unavailable ? 'unavailable' : ''}" role=${issue.unavailable ? 'status' : 'alert'}><ha-icon icon=${issue.unavailable ? 'mdi:information-outline' : 'mdi:alert-circle-outline'} aria-hidden="true"></ha-icon><div><strong>${issue.label}</strong>${issue.text}</div></div>`)}</div>` : nothing}
         <section class="rooms-section" aria-label="Room cleaning">

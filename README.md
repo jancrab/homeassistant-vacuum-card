@@ -6,7 +6,7 @@ A theme-native Home Assistant card for Roborock room cleaning. Choose an existin
 
 ### Manual
 
-Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.3.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
+Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.4.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
 
 ### HACS (after public publication)
 
@@ -25,6 +25,8 @@ Once this repository is published publicly, add it as a custom Dashboard reposit
 Names and icons fall back to the selected control's friendly name/icon. Both remain visible on every room tile. No entities are guessed or selected from other robots. The editor uses HA's native entity and icon pickers.
 
 Choose **compact** under **Layout** for a dense status header, a single statistics row and two columns of room buttons with icons beside their names. Compact is the default. **Wide** keeps the spacious header and larger tiles, with three columns when the actual card is at least 440 px wide. All buttons retain a minimum 44 px target height; pending, unavailable and error messages stay visible in both modes.
+
+Both layouts automatically shrink when the robot is not cleaning or returning. Charging, docked, idle, paused, error and offline states use a small header with status, robot icon and battery, followed by compact room buttons. Area, time and progress are omitted at rest, including old readings from the last run. Alerts and action feedback remain visible. Starting/resuming work restores the chosen layout automatically from HA state updates; no manual mode switch is needed. While working, battery, area and time occupy a slim icon-and-value row, with accessible labels and hover descriptions.
 
 The small robot icon moves while cleaning or returning, and shows a pulsing lightning bolt while charging. Docked, paused, error, offline and idle states have distinct static symbols. Select **Charging binary sensor** under **Statistics and alerts** to use Roborock's charging entity. Docked alone does not trigger charging animation. Without that mapping, an explicit `charging` vacuum/detailed status can supply the signal. Animation pauses offscreen and in hidden browser tabs, and becomes static with the system's reduced-motion preference. The icon still opens robot details.
 
@@ -66,7 +68,7 @@ dock_error_entity: sensor.your_robot_dock_error
 | `cleaning_area_entity`, `cleaning_time_entity` | Hide these optional statistics. |
 | `water_shortage_entity`, `vacuum_error_entity`, `dock_error_entity` | No sensor alert for that source. A vacuum `error` state or `error` attribute still appears. |
 
-Battery and progress accept only numeric 0–100 values. Missing values never become zero. A configured but unavailable source does not silently fall back to another source. Progress is labeled **Last reported progress** outside the vacuum's `cleaning` state; no completion percentage is estimated. Area/time reflect the values reported by HA and may refer to the last cleaning run.
+Battery and progress accept only numeric 0–100 values. Missing values never become zero. A configured but unavailable source does not silently fall back to another source. Progress is shown during cleaning or returning, labeled **Last reported progress** while returning; no completion percentage is estimated. Area/time reflect the values reported by HA. These cleaning metrics are hidden in the automatic rest view.
 
 Water shortage `on` shows a warning. Error sensor states other than `none`, `ok`, `no_error`, `no error`, `0`, `off` or `false` show their reported error. Missing/unknown/unavailable configured error sensors show a separate **Sensor unavailable** notice. HA's state formatter supplies localized entity values where available; card labels are English.
 

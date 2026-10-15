@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- Automatically shrink both layouts outside cleaning/returning: keep status, battery, robot icon, room controls and alerts, and omit cleaning metrics at rest.
+- Restore the configured working layout on live state changes, without changing saved configuration.
+- Replace large statistics blocks with a slim icon-and-value row with accessible labels.
+
 ## 0.3.0
 
 - Add a small animated robot icon for cleaning, returning and confirmed charging, with static docked, paused, idle, error and offline symbols.

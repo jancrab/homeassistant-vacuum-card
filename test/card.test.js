@@ -38,12 +38,12 @@ test('reused hass renders state, sensor changes, zero battery and unavailable st
   card.hass = card.hass; await card.updateComplete;
   assert.equal(card.shadowRoot.querySelector('h1').textContent, 'Cleaning');
   assert.equal(card.shadowRoot.querySelector('progress').value, 36);
-  assert.match(card.shadowRoot.querySelector('.stats').textContent, /0 %/);
+  assert.match(card.shadowRoot.querySelector('[data-metric=Battery]').textContent, /0 %/);
   card.hass.states['vacuum.example'] = { state: 'unavailable', attributes: { battery_level: 82 } };
   card.hass = card.hass; await card.updateComplete;
   assert.equal(card.shadowRoot.querySelector('h1').textContent, 'Unavailable');
   assert.equal(card.shadowRoot.querySelector('.room').disabled, true);
-  assert.match(card.shadowRoot.querySelector('.stats').textContent, /—/);
+  assert.match(card.shadowRoot.querySelector('[data-metric=Battery]').textContent, /—/);
 });
 
 test('more-info targets selected vacuum and names are rendered as text', async () => {
@@ -62,7 +62,7 @@ test('context updates drive sensors and release subscription on disconnect/recon
   card.setConfig({ entity: 'vacuum.example', battery_entity: 'sensor.battery' }); host.append(card);
   callback({ 'vacuum.example': { state: 'cleaning', attributes: {} }, 'sensor.battery': { state: '42' } }, () => releases++); await card.updateComplete;
   assert.equal(card.shadowRoot.querySelector('h1').textContent, 'Cleaning');
-  assert.match(card.shadowRoot.querySelector('.stats').textContent, /42 %/);
+  assert.match(card.shadowRoot.querySelector('[data-metric=Battery]').textContent, /42 %/);
   card.remove(); assert.equal(releases, 1);
   host.append(card);
   callback({ 'vacuum.example': { state: 'docked', attributes: {} } }, () => releases++); await card.updateComplete;
@@ -121,7 +121,7 @@ test('percent metrics preserve zero, reject invalid readings, and respect explic
 });
 
 test('progress is optional, real zero renders and invalid values do not become progress', async () => {
-  const card = fixture(); await card.updateComplete;
+  const card = fixture(); card.hass.states['vacuum.example'].state = 'cleaning'; await card.updateComplete;
   assert.equal(card.shadowRoot.querySelector('progress'), null);
   card.setConfig({ entity: 'vacuum.example', progress_entity: 'sensor.progress' });
   for (const value of ['0', '67', 'unknown', '101', '']) {
@@ -227,5 +227,35 @@ test('motion pauses offscreen/in hidden tabs and observers are released on disco
     else globalThis.IntersectionObserver = originalObserver;
     if (hiddenDescriptor) Object.defineProperty(document, 'hidden', hiddenDescriptor);
     else delete document.hidden;
+  }
+});
+
+test('both layouts automatically shrink at rest and restore live stats when work resumes', async () => {
+  for (const layout of ['compact', 'wide']) {
+    const card = fixture({ layout, charging_entity: 'binary_sensor.charging', progress_entity: 'sensor.progress', cleaning_area_entity: 'sensor.area', cleaning_time_entity: 'sensor.time', water_shortage_entity: 'binary_sensor.water' });
+    const states = card.hass.states;
+    Object.assign(states, {
+      'binary_sensor.charging': { state: 'on' }, 'sensor.progress': { state: '48' },
+      'sensor.area': { state: '24', attributes: { unit_of_measurement: 'm²' } },
+      'sensor.time': { state: '18', attributes: { unit_of_measurement: 'min' } },
+      'binary_sensor.water': { state: 'on' },
+    });
+    for (const robotState of ['docked', 'idle', 'paused', 'error', 'unavailable', 'cleaning', 'returning', 'docked']) {
+      states['vacuum.example'].state = robotState;
+      card.hass = card.hass; await card.updateComplete;
+      const working = ['cleaning', 'returning'].includes(robotState);
+      const root = card.shadowRoot;
+      assert.equal(root.querySelector('ha-card').classList.contains('resting'), !working, `${layout}/${robotState}`);
+      assert.equal(Boolean(root.querySelector('progress')), working);
+      assert.equal(Boolean(root.querySelector('[data-metric="Cleaned area"]')), working);
+      assert.equal(Boolean(root.querySelector('[data-metric="Cleaning time"]')), working);
+      assert.ok(root.querySelector('[data-metric=Battery]'));
+      assert.ok(root.querySelector('.room'));
+      assert.match(root.querySelector('.alerts').textContent, /Water shortage/);
+      if (working) assert.equal(root.querySelector('progress').value, 48);
+    }
+    assert.equal(card._config.layout, layout);
+    assert.equal(card.hass.states['sensor.area'].state, '24');
+    card.remove();
   }
 });
