@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0
+## 0.4.0 — 2026-10-17
 
 - Automatically shrink both layouts outside cleaning/returning: keep status, battery, robot icon, room controls and alerts, and omit cleaning metrics at rest.
 - Restore the configured working layout on live state changes, without changing saved configuration.

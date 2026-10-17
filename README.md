@@ -8,11 +8,11 @@ A theme-native Home Assistant card for Roborock room cleaning. Choose an existin
 
 Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.4.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
 
-### HACS (after public publication)
+### HACS
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jancrab&repository=homeassistant-vacuum-card&category=plugin)
 
-Once this repository is published publicly, add it as a custom Dashboard repository in HACS. The module resource is `/hacsfiles/homeassistant-vacuum-card/homeassistant-vacuum-card.js`. This local project has not been published.
+Add [jancrab/homeassistant-vacuum-card](https://github.com/jancrab/homeassistant-vacuum-card) as a custom **Dashboard** repository in HACS, download the latest release and reload the browser. The module resource is `/hacsfiles/homeassistant-vacuum-card/homeassistant-vacuum-card.js`.
 
 ## Configure in the visual editor
 
@@ -95,6 +95,6 @@ Open `http://127.0.0.1:4173` for the built card with simulated data, light/dark 
 
 Automated tests cover exact button/script targets, in-flight serialization, failure/retry, unavailable controls, zero/missing metrics, sensor alerts, reused `hass`, context subscription cleanup and visual-editor configuration preservation. Browser checks exercise the built bundle. Real Home Assistant editor startup and physical robot operation still require verification in the target installation.
 
-Commit `package-lock.json` and the built bundle with source changes. CI verifies the committed build; the release workflow requires a matching version tag. Public HACS validation and publication have not been run locally. See [AGENTS.md](AGENTS.md), [the working guide](docs/working-guide.md) and [the design guide](docs/design-style.md).
+Commit `package-lock.json` and the built bundle with source changes. CI verifies the committed build and HACS requirements; the release workflow requires a matching version tag. See [GitHub Actions](https://github.com/jancrab/homeassistant-vacuum-card/actions) for validation results and [Releases](https://github.com/jancrab/homeassistant-vacuum-card/releases) for downloadable bundles. See also [AGENTS.md](AGENTS.md), [the working guide](docs/working-guide.md) and [the design guide](docs/design-style.md).
 
 MIT; see LICENSE.
