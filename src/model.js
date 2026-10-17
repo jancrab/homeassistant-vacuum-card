@@ -6,6 +6,16 @@ export function validateConfig(config) {
   if (config.layout !== undefined && !['compact', 'wide'].includes(config.layout)) throw new Error('Layout must be compact or wide.');
   if (config.name !== undefined && typeof config.name !== 'string') throw new Error('Name must be text.');
   if (config.auto_detect !== undefined && typeof config.auto_detect !== 'boolean') throw new Error('Automatic sensor selection must be true or false.');
+  if (config.show_toolbar !== undefined && typeof config.show_toolbar !== 'boolean') throw new Error('Show robot controls must be true or false.');
+  if (config.map_entity && !/^(image|camera)\.[a-z0-9_]+$/.test(config.map_entity)) throw new Error('Map must be an image or camera entity.');
+  if (config.stats !== undefined && !Array.isArray(config.stats)) throw new Error('Additional statistics must be a list.');
+  const stats = (config.stats || []).map(stat => {
+    if (!stat || typeof stat !== 'object' || Array.isArray(stat)) throw new Error('Each statistic must be an object.');
+    if (stat.entity && !entityPattern.test(stat.entity)) throw new Error('Choose a valid statistic entity.');
+    for (const field of ['entity', 'attribute', 'name', 'icon', 'unit']) if (stat[field] !== undefined && typeof stat[field] !== 'string') throw new Error(`Statistic ${field} must be text.`);
+    if (stat.when && !['always', 'working', 'resting'].includes(stat.when)) throw new Error('Statistic visibility must be always, working or resting.');
+    return { ...stat };
+  });
   for (const field of sensorFields) {
     if (config[field] && (typeof config[field] !== 'string' || !/^(sensor|binary_sensor)\.[a-z0-9_]+$/.test(config[field]))) throw new Error(`${field} must be a sensor entity.`);
   }
@@ -17,7 +27,7 @@ export function validateConfig(config) {
     for (const field of ['name', 'icon']) if (room[field] !== undefined && typeof room[field] !== 'string') throw new Error(`Room ${field} must be text.`);
     return { ...room };
   });
-  return { layout: 'compact', ...config, rooms };
+  return { layout: 'compact', ...config, rooms, stats };
 }
 export const isUnavailable = state => !state || ['unknown', 'unavailable', ''].includes(state.state);
 export function robotMode(config, states) {

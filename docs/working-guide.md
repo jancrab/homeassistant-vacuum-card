@@ -45,3 +45,13 @@ Roborock docks are separate devices identified by the robot identifier plus _doc
 The robot details button contains one centered robot SVG; no separate dock silhouette above it. Charge/paused/error markers belong inside the robot body.
 
 Verified source references: [HA entity registry frontend](https://github.com/home-assistant/frontend/blob/dev/src/data/entity/entity_registry.ts), [Roborock sensors](https://github.com/home-assistant/core/blob/dev/homeassistant/components/roborock/sensor.py), [binary sensors](https://github.com/home-assistant/core/blob/dev/homeassistant/components/roborock/binary_sensor.py), [dock device identifiers](https://github.com/home-assistant/core/blob/dev/homeassistant/components/roborock/coordinator.py).
+
+## Robot controls and optional details
+
+Vacuum control flags are START=8192, PAUSE=4, STOP=8, RETURN_HOME=16, FAN_SPEED=32 and LOCATE=512. Check both selected-entity features and the HA service registry (when provided) at render time and again before dispatch. Resume uses vacuum.start. Pass fan_speed_list strings unchanged. Keep UI values tied to HA state; do not update them optimistically after service acknowledgement. Stop has its own in-flight lock and bypasses a pending routine/ordinary control; newer command feedback must not be overwritten by older responses.
+
+Robot controls automatically collapse outside cleaning/returning. Optional statistics stay in a collapsed section, support scalar entity/attribute values and working/resting visibility, and never reset consumables. A unit override is a label only. Preserve unknown fields and unfinished editor rows.
+
+Map selection is explicit (image or camera). Create the native picture-entity card only while expanded, pass hass through, and drop obsolete async loads when closed, reconfigured or disconnected. Native HA owns authentication/refresh; do not construct token URLs or add independent map polling. The demo map and helpers are stand-ins, not real HA verification.
+
+References: [vacuum feature flags](https://github.com/home-assistant/core/blob/dev/homeassistant/components/vacuum/const.py), [vacuum actions](https://www.home-assistant.io/integrations/vacuum/), [picture-entity](https://www.home-assistant.io/dashboards/picture-entity/). Feature inspiration: [denysdovhan/vacuum-card](https://github.com/denysdovhan/vacuum-card); no copied code or images.

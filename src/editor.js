@@ -5,6 +5,7 @@ import { sensorFields } from './model.js';
 const entity = (name, domain, required = false) => ({ name, required, selector: { entity: { domain } } });
 const baseSchema = [entity('entity', 'vacuum', true), { name: 'name', selector: { text: {} } }, { name: 'layout', selector: { select: { options: ['compact', 'wide'] } } }];
 const roomSchema = [entity('entity', ['button', 'script'], true), { name: 'name', selector: { text: {} } }, { name: 'icon', selector: { icon: {} } }];
+const statSchema = [{ name: 'entity', selector: { entity: {} } }, ...['attribute', 'name', 'unit'].map(name => ({ name, selector: { text: {} } })), { name: 'icon', selector: { icon: {} } }, { name: 'when', selector: { select: { options: ['always', 'working', 'resting'] } } }];
 const sensorSchema = ['status', 'charging', 'battery', 'progress', 'cleaning_area', 'cleaning_time', 'vacuum_error', 'dock_error', 'water_shortage'].map(name => entity(`${name}_entity`, ['water_shortage', 'charging'].includes(name) ? 'binary_sensor' : 'sensor'));
 const labels = { entity: 'Vacuum', name: 'Name (optional)', layout: 'Layout', status_entity: 'Detailed status (optional)', charging_entity: 'Charging binary sensor (optional)', battery_entity: 'Battery sensor (optional)', progress_entity: 'Cleaning progress, 0–100 % (optional)', cleaning_area_entity: 'Cleaned area (optional)', cleaning_time_entity: 'Cleaning time (optional)', vacuum_error_entity: 'Vacuum error (optional)', dock_error_entity: 'Dock error (optional)', water_shortage_entity: 'Water shortage (optional)' };
 
@@ -24,7 +25,7 @@ export class VacuumCardEditor extends LitElement {
     details { margin-top: 24px; }
     summary { cursor: pointer; min-height: 44px; line-height: 44px; }
   `;
-  setConfig(config) { this._config = { ...config, rooms: (config.rooms || []).map(room => ({ ...room })) }; }
+  setConfig(config) { this._config = { ...config, rooms: (config.rooms || []).map(room => ({ ...room })), stats: (config.stats || []).map(stat => ({ ...stat })) }; }
   _emit(patch) {
     this._config = { ...this._config, ...patch };
     this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true }));
@@ -48,6 +49,10 @@ export class VacuumCardEditor extends LitElement {
     event.stopPropagation();
     this._emit({ rooms: this._config.rooms.map((room, i) => i === index ? { ...room, ...event.detail.value } : room) });
   }
+  _statistic(event, index) {
+    event.stopPropagation();
+    this._emit({ stats: this._config.stats.map((stat, i) => i === index ? { ...stat, ...event.detail.value } : stat) });
+  }
   _move(index, offset) {
     const rooms = [...this._config.rooms], next = index + offset;
     if (next < 0 || next >= rooms.length) return;
@@ -70,6 +75,15 @@ export class VacuumCardEditor extends LitElement {
         <div class="actions"><button @click=${() => this._discovery.load(true)} ?disabled=${this._discovery.loading || !this.hass.callWS}>Refresh sensors</button><button @click=${this._resetSensors}>Use detected sensors</button></div>
         <ha-form class="sensor-form" .hass=${this.hass} .data=${sensorData} .schema=${sensorSchema} .computeLabel=${field => labels[field.name]} @value-changed=${event => this._sensors(event, sensorData)}></ha-form>
         <p>Without a selected sensor, battery uses battery_level and progress uses cleaning_progress when available. Missing values are never treated as zero.</p>
+      </details>
+      <details><summary>Robot controls and map</summary>
+        <ha-form class="controls-form" .hass=${this.hass} .data=${{ show_toolbar: true, ...this._config }} .schema=${[{ name: 'show_toolbar', selector: { boolean: {} } }, entity('map_entity', ['image', 'camera'])]} .computeLabel=${field => ({ show_toolbar: 'Show supported robot controls', map_entity: 'Map image or camera (optional)' })[field.name]} @value-changed=${this._update}></ha-form>
+        <p>Only supported actions and the robot's exact suction levels appear. Controls expand while working and collapse at rest. Select the map entity explicitly; the map loads only when opened. It displays the integration's map and does not select cleaning zones.</p>
+      </details>
+      <details><summary>Maintenance and extra statistics</summary>
+        <p>Add remaining filter/brush life, cleaning totals or other readings. Choose an entity, or enter an attribute of the selected vacuum. Values appear in a collapsed section to keep the card small.</p>
+        ${this._config.stats.map((stat, index) => html`<fieldset><legend>${stat.name || `Statistic ${index + 1}`}</legend><ha-form class="stat-form" .hass=${this.hass} .data=${{ when: 'always', ...stat }} .schema=${statSchema} .computeLabel=${field => ({ entity: 'Source entity (optional)', attribute: 'Attribute (optional)', name: 'Label (optional)', unit: 'Unit override (optional)', icon: 'Icon (optional)', when: 'Show when' })[field.name]} @value-changed=${event => this._statistic(event, index)}></ha-form><button aria-label=${`Remove statistic ${index + 1}`} @click=${() => this._emit({ stats: this._config.stats.filter((_, i) => i !== index) })}>Remove</button></fieldset>`)}
+        <button class="add-stat" @click=${() => this._emit({ stats: [...this._config.stats, { entity: '', name: '', when: 'always' }] })}>Add statistic</button>
       </details>`;
   }
 }

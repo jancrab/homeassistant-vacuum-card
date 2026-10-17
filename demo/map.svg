@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 280" role="img" aria-label="Simulated floor plan">
+  <rect width="480" height="280" rx="16" fill="#e8eee7"/>
+  <path d="M40 35h260v60h130v150H40Z" fill="#d3e3d2" stroke="#647d69" stroke-width="5"/>
+  <path d="M170 35v85m0 35v90M300 95v70m0 35v45M40 145h65m35 0h30" fill="none" stroke="#647d69" stroke-width="5"/>
+  <path d="M195 62h80v15h-80v15h80v15h-80v15h80v15h-80v15h80v15h-80v15h80v15h-80v15h80" fill="none" stroke="#75a484" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="275" cy="212" r="12" fill="#fafcf9" stroke="#37785b" stroke-width="3"/><circle cx="275" cy="208" r="3" fill="#37785b"/>
+  <text x="60" y="80" fill="#425b49" font-family="sans-serif" font-size="14">Living room</text><text x="65" y="200" fill="#425b49" font-family="sans-serif" font-size="14">Kitchen</text><text x="328" y="150" fill="#425b49" font-family="sans-serif" font-size="14">Bedroom</text>
+  <text x="240" y="268" text-anchor="middle" fill="#647d69" font-family="sans-serif" font-size="10">SIMULATED MAP</text>
+</svg>

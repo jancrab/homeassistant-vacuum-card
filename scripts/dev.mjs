@@ -8,7 +8,7 @@ createServer(async (request, response) => {
     const file = resolve(root, '.' + (pathname === '/' ? '/demo/index.html' : pathname));
     if (!file.startsWith(root + sep)) throw new Error('Invalid path');
     const body = await readFile(file);
-    response.setHeader('Content-Type', ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8' })[extname(file)] || 'application/octet-stream');
+    response.setHeader('Content-Type', ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' })[extname(file)] || 'application/octet-stream');
     response.end(body);
   } catch {
     response.writeHead(404).end('Not found');

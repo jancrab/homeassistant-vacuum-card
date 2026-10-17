@@ -58,6 +58,22 @@ export const cardStyles = css`
   .feedback { margin: 16px 0 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
   .feedback:empty { display: none; }
   .feedback.error { color: var(--vacuum-error); }
+  .extras { padding: 0 16px; border-top: 1px solid var(--vacuum-line); }
+  .extras summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 500; list-style: none; }
+  .extras summary::before { content: '›'; font-size: 20px; color: var(--vacuum-muted); }
+  .extras[open] summary::before { transform: rotate(90deg); }
+  .extras summary:focus-visible, select:focus-visible { outline: 2px solid var(--vacuum-accent); outline-offset: -2px; }
+  .toolbar { display: flex; gap: 4px; flex-wrap: wrap; padding-bottom: 8px; }
+  .control { flex: 1 0 44px; display: flex; flex-direction: column; gap: 3px; align-items: center; justify-content: center; min-width: 44px; border-radius: 10px; background: transparent; padding: 6px; }
+  .control ha-icon { --mdc-icon-size: 20px; color: var(--vacuum-accent); }
+  .control span { font-size: 11px; }
+  .control:not(:disabled):hover { background: color-mix(in srgb, var(--vacuum-accent) 10%, transparent); }
+  .control:disabled { opacity: .45; }
+  .fan-speed { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; padding-bottom: 12px; color: var(--vacuum-muted); }
+  select { flex: 1; min-width: 0; max-width: 100%; min-height: 44px; font: inherit; color: var(--primary-text-color); background: var(--card-background-color); border: 1px solid var(--vacuum-line); border-radius: 8px; padding: 6px 10px; }
+  .extra-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-bottom: 12px; }
+  .extra-stat > span { display: block; color: var(--vacuum-muted); font-size: 11px; overflow-wrap: anywhere; margin-bottom: 4px; }
+  vacuum-card-map { display: block; padding-bottom: 12px; --ha-card-box-shadow: none; }
   @container (min-width: 440px) { .wide .rooms { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @container (max-width: 300px) { .hero, .rooms-section { padding: 16px; } .alerts { padding: 0 16px 16px; } .room { padding: 12px; } }
   .compact .hero { padding: 12px 16px; }

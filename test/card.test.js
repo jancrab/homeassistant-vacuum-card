@@ -2,6 +2,7 @@ import { test, before, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 import { percent, alerts, metric } from '../src/model.js';
+import { extraStats } from '../src/extra-stats.js';
 const window = new Window();
 for (const key of ['window', 'document', 'customElements', 'HTMLElement', 'Element', 'Document', 'CSSStyleSheet', 'ShadowRoot', 'CustomEvent', 'Event']) globalThis[key] = window[key];
 globalThis.__VERSION__ = 'test';
@@ -20,6 +21,146 @@ function fixture(patch = {}) {
   return card;
 }
 const change = value => new CustomEvent('value-changed', { detail: { value }, bubbles: true });
+
+test('vacuum controls honor capabilities, state and exact fan presets, with no optimistic status', async () => {
+  const card = fixture(); const calls = [];
+  card.hass.callService = async (...args) => calls.push(args);
+  await card.updateComplete;
+  assert.equal(card.shadowRoot.querySelector('.robot-controls'), null);
+  await card._control('start'); assert.equal(calls.length, 0);
+  const vacuum = card.hass.states['vacuum.example'];
+  vacuum.attributes.supported_features = 8192 | 4 | 8 | 16 | 32 | 512;
+  vacuum.attributes.fan_speed_list = ['Quiet', 'Balanced', 'Turbo+']; vacuum.attributes.fan_speed = 'Balanced';
+  card.hass = card.hass; await card.updateComplete;
+  assert.equal(card.shadowRoot.querySelector('.robot-controls').open, false);
+  assert.equal(card.shadowRoot.querySelector('select').value, 'Balanced');
+  await card._control('start');
+  assert.deepEqual(calls.pop(), ['vacuum', 'start', { entity_id: 'vacuum.example' }]);
+  assert.equal(vacuum.state, 'docked');
+  await card._control('return_to_base'); assert.equal(calls.length, 0);
+  vacuum.state = 'cleaning'; card.hass = card.hass; await card.updateComplete;
+  assert.equal(card.shadowRoot.querySelector('.robot-controls').open, true);
+  assert.ok(card.shadowRoot.querySelector('[data-service=pause]'));
+  await card._control('start'); assert.equal(calls.length, 0);
+  for (const service of ['pause', 'stop', 'return_to_base', 'locate']) {
+    await card._control(service);
+    assert.deepEqual(calls.pop(), ['vacuum', service, { entity_id: 'vacuum.example' }]);
+  }
+  await card._control('set_fan_speed', 'turbo'); assert.equal(calls.length, 0);
+  await card._control('set_fan_speed', 'Turbo+');
+  assert.deepEqual(calls.pop(), ['vacuum', 'set_fan_speed', { entity_id: 'vacuum.example', fan_speed: 'Turbo+' }]);
+  assert.equal(vacuum.attributes.fan_speed, 'Balanced');
+  vacuum.state = 'paused'; card.hass = card.hass; await card.updateComplete;
+  assert.equal(card.shadowRoot.querySelector('[data-service=start]').textContent.trim(), 'Resume');
+  card.hass.services = { vacuum: { stop: {} } }; card.hass = card.hass; await card.updateComplete;
+  await card._control('start'); assert.equal(calls.length, 0);
+  assert.equal(card.shadowRoot.querySelector('[data-service=start]'), null);
+  vacuum.state = 'unavailable'; await card._control('stop'); assert.equal(calls.length, 0);
+});
+
+test('Stop bypasses an in-flight routine before HA reports cleaning; stale responses cannot overwrite Stop feedback', async () => {
+  const card = fixture();
+  card.hass.states['vacuum.example'].attributes.supported_features = 8 | 4;
+  let finishRoom, failStop; const calls = [];
+  card.hass.callService = (domain, service) => {
+    calls.push(service);
+    return domain === 'button' ? new Promise(resolve => finishRoom = resolve) : new Promise((_, reject) => failStop = reject);
+  };
+  const room = card._clean(bathroom, 0);
+  await card._control('pause'); assert.deepEqual(calls, ['press']);
+  const stop = card._control('stop'); await card.updateComplete;
+  assert.deepEqual(calls, ['press', 'stop']);
+  await card._control('stop'); assert.equal(calls.length, 2);
+  failStop(new Error('Robot disconnected')); await stop;
+  finishRoom(); await room; await card.updateComplete;
+  assert.match(card.shadowRoot.querySelector('.feedback.error').textContent, /Robot disconnected/);
+  card.hass.states['vacuum.example'].state = 'cleaning';
+  card.hass.callService = async () => {}; await card._control('stop'); await card.updateComplete;
+  assert.match(card.shadowRoot.querySelector('.feedback').textContent, /Command sent: Stop/);
+});
+
+test('extra statistics preserve zero, support attributes/units and state visibility, and reject object values', () => {
+  const config = { entity: 'vacuum.example', stats: [
+    { entity: 'sensor.filter', name: 'Filter', when: 'resting' },
+    { attribute: 'count', name: 'Runs', unit: 'runs' },
+    { attribute: 'complex', name: 'Bad' },
+    { entity: 'sensor.missing', when: 'working' },
+  ] };
+  const states = { 'vacuum.example': { state: 'docked', attributes: { count: 0, complex: {} } }, 'sensor.filter': { state: '0', attributes: { unit_of_measurement: 'h' } } };
+  assert.deepEqual(extraStats(config, states, {}, false).map(stat => stat.value), ['0 h', '0 runs', 'Unavailable']);
+  assert.deepEqual(extraStats(config, states, {}, true).map(stat => stat.value), ['0 runs', 'Unavailable', 'Unavailable']);
+  states['sensor.filter'].state = 'unavailable';
+  assert.equal(extraStats(config, states, {}, false)[0].value, 'Unavailable');
+});
+
+test('editor manages controls, map and extra statistics while preserving unknown settings', async () => {
+  const editor = document.createElement('homeassistant-vacuum-card-editor');
+  editor.setConfig({ entity: 'vacuum.example', custom_setting: 7 }); editor.hass = { states: {} }; document.body.append(editor);
+  let result; editor.addEventListener('config-changed', event => result = event.detail.config);
+  await editor.updateComplete;
+  editor.shadowRoot.querySelector('.controls-form').dispatchEvent(change({ show_toolbar: false, map_entity: 'image.map' })); await editor.updateComplete;
+  editor.shadowRoot.querySelector('.add-stat').click(); await editor.updateComplete;
+  editor.shadowRoot.querySelector('.stat-form').dispatchEvent(change({ entity: 'sensor.filter', name: 'Filter', when: 'resting', custom: 42 })); await editor.updateComplete;
+  assert.equal(result.show_toolbar, false); assert.equal(result.map_entity, 'image.map');
+  assert.equal(result.stats[0].entity, 'sensor.filter'); assert.equal(result.stats[0].custom, 42); assert.equal(result.custom_setting, 7);
+  assert.doesNotThrow(() => validateConfig(result));
+  editor.shadowRoot.querySelector('[aria-label="Remove statistic 1"]').click(); assert.deepEqual(result.stats, []);
+  for (const patch of [{ map_entity: 'sensor.map' }, { stats: {} }, { stats: [{ when: 'invalid' }] }, { stats: [{ unit: {} }] }, { show_toolbar: 'yes' }]) assert.throws(() => validateConfig({ entity: 'vacuum.example', ...patch }));
+});
+
+test('map mounts lazily, passes its exact entity to HA, and discards stale loads', async () => {
+  const original = window.loadCardHelpers;
+  const card = fixture({ map_entity: 'image.map' }); card.hass.states['image.map'] = { state: '2026-10-17' };
+  let requests = 0, resolveHelpers, received;
+  window.loadCardHelpers = () => { requests++; return new Promise(resolve => resolveHelpers = resolve); };
+  try {
+    await card.updateComplete;
+    assert.equal(card.shadowRoot.querySelector('vacuum-card-map'), null); assert.equal(requests, 0);
+    card._mapOpen = true; await card.updateComplete;
+    const map = card.shadowRoot.querySelector('vacuum-card-map'); await map.updateComplete;
+    assert.equal(requests, 1);
+    card._mapOpen = false; await card.updateComplete;
+    resolveHelpers({ createCardElement() { throw new Error('Must not mount after closing'); } });
+    await new Promise(resolve => setTimeout(resolve, 0)); assert.equal(map._card, undefined);
+    window.loadCardHelpers = async () => ({ createCardElement(config) { received = config; return document.createElement('div'); } });
+    card._mapOpen = true; await card.updateComplete;
+    const fresh = card.shadowRoot.querySelector('vacuum-card-map'); await fresh.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 0)); await fresh.updateComplete;
+    assert.equal(received.entity, 'image.map'); assert.equal(received.type, 'picture-entity');
+    assert.equal(fresh._card.hass, card.hass);
+    card.hass.states['image.map'].state = 'unavailable'; card.hass = card.hass; await card.updateComplete; await fresh.updateComplete;
+    assert.match(fresh.textContent, /Map unavailable/);
+  } finally { window.loadCardHelpers = original; }
+});
+
+test('map helper failures expose retry and recover without changing the configured entity', async () => {
+  const original = window.loadCardHelpers;
+  const map = document.createElement('vacuum-card-map'); map.entity = 'camera.robot_map'; map.hass = { states: { 'camera.robot_map': { state: 'idle' } } };
+  window.loadCardHelpers = async () => { throw new Error('Not ready'); };
+  try {
+    document.body.append(map); await map.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 0)); await map.updateComplete;
+    assert.match(map.textContent, /Could not load/);
+    let target;
+    window.loadCardHelpers = async () => ({ createCardElement(config) { target = config.entity; return document.createElement('div'); } });
+    map.querySelector('button').click();
+    await new Promise(resolve => setTimeout(resolve, 0)); await map.updateComplete;
+    assert.equal(target, 'camera.robot_map'); assert.equal(map._error, false);
+  } finally { window.loadCardHelpers = original; }
+});
+
+test('controls collapse on charging and hidden toolbar cannot dispatch actions', async () => {
+  const card = fixture(); const vacuum = card.hass.states['vacuum.example'];
+  vacuum.attributes.supported_features = 8192 | 4 | 8; vacuum.state = 'cleaning';
+  card.hass = card.hass; await card.updateComplete;
+  assert.equal(card.shadowRoot.querySelector('.robot-controls').open, true);
+  vacuum.state = 'docked'; card.hass = card.hass; await card.updateComplete;
+  assert.equal(card.shadowRoot.querySelector('.robot-controls').open, false);
+  card.setConfig({ entity: 'vacuum.example', show_toolbar: false }); await card.updateComplete;
+  assert.equal(card.shadowRoot.querySelector('.robot-controls'), null);
+  let calls = 0; card.hass.callService = async () => calls++;
+  await card._control('start'); assert.equal(calls, 0);
+});
 
 test('validates domains and layout, allows incomplete editor rows without mutating input', () => {
   for (const config of [{ entity: 'invalid' }, { entity: 'light.example' }, { entity: 'vacuum.example', layout: 'invalid' }, { entity: 'vacuum.example', rooms: [{ entity: 'switch.bad' }] }, { entity: 'vacuum.example', rooms: 'bad' }, { entity: 'vacuum.example', progress_entity: 'button.bad' }]) assert.throws(() => validateConfig(config));

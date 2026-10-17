@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 — 2026-10-17
+
+- Add capability-gated Start/Resume, Pause, Stop, Dock and Locate controls, with exact integration-provided suction levels.
+- Collapse the toolbar at rest and expand it while working. Keep Stop available during an in-flight routine; protect feedback against stale responses.
+- Add an optional, explicitly selected image/camera map using HA's native picture card, loaded only while expanded, with failure/retry feedback.
+- Add UI-configurable maintenance and extra statistics from entities or attributes, with labels, icons, units and working/resting visibility.
+- Preserve the room-control workflow, automatic sensor selection and compact rest presentation. Feature concepts were inspired by denysdovhan/vacuum-card; implementation and artwork remain original.
+- Validate using mocked tests and browser scenarios. Native HA map rendering and physical device operation still require target-installation verification.
+
 ## 0.5.0 — 2026-10-17
 
 - Automatically select related battery/charging sensors and Roborock status, progress, area/time and error sensors through HA's device and entity registries, including the associated dock.

@@ -6,7 +6,7 @@ A theme-native Home Assistant card for Roborock room cleaning. Choose an existin
 
 ### Manual
 
-Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.5.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
+Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.6.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
 
 ### HACS
 
@@ -22,11 +22,11 @@ Add [jancrab/homeassistant-vacuum-card](https://github.com/jancrab/homeassistant
 4. Open **Statistics and alerts** to review the automatically selected sensors. Change a selection to override it; clear a field to use its fallback. **Use detected sensors** removes sensor overrides and restores automatic selection.
 5. Save. Tapping a room starts its configured routine immediately.
 
-Names and icons fall back to the selected control's friendly name/icon. Both remain visible on every room tile. No entities are guessed or selected from other robots. The editor uses HA's native entity and icon pickers.
+Names and icons fall back to the selected control's friendly name/icon. Both remain visible on every room tile. Optional robot controls, maps and extra statistics also have native editor settings. No entities are guessed or selected from other robots. The editor uses HA's native entity and icon pickers.
 
 Choose **compact** under **Layout** for a dense status header, a single statistics row and two columns of room buttons with icons beside their names. Compact is the default. **Wide** keeps the spacious header and larger tiles, with three columns when the actual card is at least 440 px wide. All buttons retain a minimum 44 px target height; pending, unavailable and error messages stay visible in both modes.
 
-Both layouts automatically shrink when the robot is not cleaning or returning. Charging, docked, idle, paused, error and offline states use a small header with status, robot icon and battery, followed by compact room buttons. Area, time and progress are omitted at rest, including old readings from the last run. Alerts and action feedback remain visible. Starting/resuming work restores the chosen layout automatically from HA state updates; no manual mode switch is needed. While working, battery, area and time occupy a slim icon-and-value row, with accessible labels and hover descriptions.
+Both layouts automatically shrink when the robot is not cleaning or returning. Charging, docked, idle, paused, error and offline states use a small header with status, robot icon and battery, followed by compact room buttons and collapsed robot controls. Optional map and maintenance sections stay collapsed until opened. Area, time and progress are omitted at rest, including old readings from the last run. Alerts and action feedback remain visible. Starting/resuming work restores the chosen layout automatically from HA state updates; no manual mode switch is needed. While working, battery, area and time occupy a slim icon-and-value row, with accessible labels and hover descriptions.
 
 The small robot icon moves while cleaning or returning, and shows a pulsing lightning bolt while charging. Docked, paused, error, offline and idle states have distinct static symbols. Roborock's charging entity is selected automatically when available; it can also be selected manually under **Statistics and alerts**. The header shows one robot symbol, with no separate dock drawing above it. Docked alone does not trigger charging animation. Without that mapping, an explicit `charging` vacuum/detailed status can supply the signal. Animation pauses offscreen and in hidden browser tabs, and becomes static with the system's reduced-motion preference. The icon still opens robot details.
 
@@ -80,11 +80,41 @@ Battery and progress accept only numeric 0–100 values. Missing values never be
 
 Water shortage `on` shows a warning. Error sensor states other than `none`, `ok`, `no_error`, `no error`, `0`, `off` or `false` show their reported error. Missing/unknown/unavailable configured error sensors show a separate **Sensor unavailable** notice. HA's state formatter supplies localized entity values where available; card labels are English.
 
+## Robot controls, suction and map
+
+Supported robot controls are enabled by default. The toolbar offers Start/Resume or Pause depending on the current state, plus Stop, Dock and Locate. Buttons require the corresponding vacuum `supported_features` flag and an available service. Missing/offline robots cannot execute commands. Resume calls `vacuum.start`; no integration-specific raw command is invented. **Robot controls** expands while cleaning/returning and collapses at rest. Disable **Show supported robot controls** in the editor (or set `show_toolbar: false`) to hide it.
+
+**Suction** uses the selected vacuum's exact `fan_speed_list` values and calls `vacuum.set_fan_speed`. No fixed Roborock preset list is assumed. The selection remains at the last HA-reported level until a state update confirms the new value. Room actions and ordinary robot commands share an in-flight lock. Stop can be sent immediately during another pending request; duplicate Stop requests are locked, and older responses cannot overwrite its feedback. A service acknowledgement never means physical cleaning has already started or stopped.
+
+Under **Robot controls and map**, choose an existing `image.*` or `camera.*` entity, such as the Roborock integration's map image. The **Map** section loads Home Assistant's native picture-entity card only when opened and removes it when closed. HA handles image access and updates; tapping it opens more-info. Unavailable maps and loading failures have visible feedback. This is a map display; room cleaning continues to use the explicitly configured buttons/scripts.
+
+```yaml
+show_toolbar: true
+map_entity: image.your_robot_map
+```
+
+## Maintenance and extra statistics
+
+Use **Maintenance and extra statistics > Add statistic** to show filter/brush life, cleaning totals or another reading. Select any source entity, or enter an attribute of the vacuum when the entity field is blank. Optional labels, icons and unit overrides are editable in the UI. **Show when** can be `always`, `working` (cleaning/returning) or `resting`. All readings appear inside a collapsed section; they do not expand the charging header.
+
+```yaml
+stats:
+  - entity: sensor.your_robot_filter_time_left
+    name: Filter remaining
+    icon: mdi:air-filter
+    when: always
+  - attribute: total_clean_count
+    name: Total runs
+    when: resting
+```
+
+Units come from the source entity unless overridden. Attribute values have no assumed unit. Unit overrides only change the label, not the value; use a Home Assistant template sensor for conversions. Zero is preserved, and unavailable entities or missing/non-scalar attributes display **Unavailable**. Statistics are display-only and never reset consumables.
+
 ## How room controls work
 
 - `button.*` calls `button.press` with exactly that entity ID. An `unknown` button timestamp is valid for a button that has never been pressed.
 - `script.*` calls `script.turn_on` with exactly that entity ID. A running script is disabled until it stops.
-- Missing/unavailable controls and an unavailable robot disable room actions. While a call is in flight, all room tiles on that card are disabled to prevent duplicate/concurrent requests.
+- Missing/unavailable controls and an unavailable robot disable room actions. While a call is in flight, all room tiles on that card are disabled to prevent duplicate/concurrent requests. Supported Stop remains available during a pending routine.
 - Failures are shown on the card and can be retried. **Command sent** acknowledges the service call; only HA updates the displayed robot state.
 
 The card runs the existing routine as configured in Home Assistant/Roborock. It does not determine room IDs, change maps or override that routine's cleaning settings. It contains no browser-based schedule; use Home Assistant automations to run the same buttons on a schedule. The robot icon opens HA's more-info dialog for the vacuum.
@@ -101,8 +131,14 @@ npm run dev
 
 Open `http://127.0.0.1:4173` for the built card with simulated data, light/dark themes, 280/360/480 px widths, error/offline/missing-data scenarios, a service log and simulated editor inputs. Icons and selectors in this standalone demo are local stand-ins for HA's native components. No command reaches a real robot.
 
-Automated tests cover registry scoping, dock association, ambiguous/disabled sensors, automatic/manual selection, async failures and editor overrides, as well as exact button/script targets, in-flight serialization, failure/retry, unavailable controls, zero/missing metrics, sensor alerts, reused `hass`, context subscription cleanup and visual-editor configuration preservation. Browser checks exercise the built bundle. Real Home Assistant editor startup and physical robot operation still require verification in the target installation.
+Automated tests cover supported control/service gating, exact fan-speed values, Stop during pending commands, map loading/cleanup/retry, additional statistics and editor preservation, plus registry scoping, dock association, ambiguous/disabled sensors, automatic/manual selection, async failures and editor overrides, as well as exact button/script targets, in-flight serialization, failure/retry, unavailable controls, zero/missing metrics, sensor alerts, reused `hass`, context subscription cleanup and visual-editor configuration preservation. Browser checks exercise the built bundle. Real Home Assistant editor startup and physical robot operation still require verification in the target installation.
 
 Commit `package-lock.json` and the built bundle with source changes. CI verifies the committed build and HACS requirements; the release workflow requires a matching version tag. See [GitHub Actions](https://github.com/jancrab/homeassistant-vacuum-card/actions) for validation results and [Releases](https://github.com/jancrab/homeassistant-vacuum-card/releases) for downloadable bundles. See also [AGENTS.md](AGENTS.md), [the working guide](docs/working-guide.md) and [the design guide](docs/design-style.md).
+
+## Inspiration
+
+The useful toolbar, map and flexible-statistics concepts were informed by [denysdovhan/vacuum-card](https://github.com/denysdovhan/vacuum-card). This implementation retains its own room-button workflow, sensor discovery, compact rest layout and original SVG. No source code or artwork was copied from that project.
+
+Service semantics follow the [Home Assistant vacuum integration](https://www.home-assistant.io/integrations/vacuum/); map display uses the native [picture-entity card](https://www.home-assistant.io/dashboards/picture-entity/). Capability flags are checked against Home Assistant's [VacuumEntityFeature definitions](https://github.com/home-assistant/core/blob/dev/homeassistant/components/vacuum/const.py).
 
 MIT; see LICENSE.

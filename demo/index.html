@@ -22,6 +22,13 @@
 <script type="module">
 // Small original line drawings stand in for HA's icon component in the offline demo.
 const paths={
+  'mdi:play':'M7 4l14 8-14 8z',
+  'mdi:pause':'M7 4v16M17 4v16',
+  'mdi:stop':'M5 5h14v14H5z',
+  'mdi:home-import-outline':'M3 11l9-8 9 8M6 10v11h12V10M9 15h6m-3-3 3 3-3 3',
+  'mdi:map-marker-radius':'M12 22s8-9 8-14A8 8 0 0 0 4 8c0 5 8 14 8 14M15 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
+  'mdi:air-filter':'M4 4h16v16H4zM8 4v16m4-16v16m4-16v16',
+  'mdi:chart-box-outline':'M3 3h18v18H3zM7 17v-4m5 4V7m5 10V9',
   'mdi:battery-outline':'M9 3h6v2h3v17H6V5h3z',
   'mdi:battery-charging':'M9 3h6v2h3v17H6V5h3zM13 8l-4 6h5l-3 5',
   'mdi:ruler-square':'M3 3h6v12h12v6H3zM6 7h3M6 11h3m4 4v3m4-3v3',
@@ -61,17 +68,25 @@ customElements.define('ha-form',class extends HTMLElement{
     }
   }
 });
+// Simulated native picture card: only a local schematic, never a real map.
+window.loadCardHelpers=async()=>({createCardElement(config){
+  const wrap=document.createElement('div');
+  const image=document.createElement('img'); image.src='/demo/map.svg'; image.alt='Simulated vacuum map'; image.style.cssText='width:100%;display:block;border-radius:12px';
+  const caption=document.createElement('p'); caption.textContent='Simulated map · '+config.entity;
+  wrap.append(image,caption); return wrap;
+}});
 await import('../dist/homeassistant-vacuum-card.js');
 const rooms=[{name:'Bad',icon:'mdi:shower',entity:'button.wohnzimmer_roborock_qrevo_master_bad'},{name:'Wohnzimmer',icon:'mdi:sofa',entity:'button.demo_living'},{name:'Küche',icon:'mdi:silverware-fork-knife',entity:'button.demo_kitchen'},{name:'Schlafzimmer',icon:'mdi:bed',entity:'button.demo_bedroom'},{name:'Arbeitszimmer',icon:'mdi:desk',entity:'button.demo_office'},{name:'Flur',icon:'mdi:floor-plan',entity:'button.demo_hall'}];
-const config={type:'custom:homeassistant-vacuum-card',entity:'vacuum.demo',name:'Roborock Qrevo Master',rooms};
+const config={type:'custom:homeassistant-vacuum-card',entity:'vacuum.demo',name:'Roborock Qrevo Master',rooms,map_entity:'image.demo_map',stats:[{entity:'sensor.demo_filter',name:'Filter remaining',icon:'mdi:air-filter'},{entity:'sensor.demo_brush',name:'Main brush remaining',icon:'mdi:chart-box-outline'}]};
 const registry=[{entity_id:'vacuum.demo'},
   ...Object.entries({status:'status',battery:'',progress:'clean_percent',area:'cleaning_area',time:'cleaning_time',error:'vacuum_error',dock:'dock_error'}).map(([name,translation_key])=>({entity_id:`sensor.demo_${name}`,translation_key})),
   {entity_id:'binary_sensor.demo_charging'},{entity_id:'binary_sensor.demo_water',translation_key:'water_shortage'}
 ].map(entry=>({device_id:'demo-robot',platform:'roborock',config_entry_id:'demo-account',...entry}));
+const robotAttributes={supported_features:8192|4|8|16|32|512,fan_speed_list:['Quiet','Balanced','Turbo','Max+'],fan_speed:'Balanced'};
 const state=(value,attributes={})=>({state:value,attributes});
 const hass={states:{},callWS:async({type})=>type.includes('entity_registry')?registry:[],callService:async(domain,service,data)=>{document.getElementById('log').textContent=JSON.stringify({domain,service,data},null,2);await new Promise(resolve=>setTimeout(resolve,700));if(document.getElementById('fail').checked)throw new Error('Simulated connection failure');}};
 const cards=['compact','wide'].map(layout=>{const card=document.getElementById(layout);card.setConfig({...config,layout});card.addEventListener('hass-more-info',event=>{document.getElementById('log').textContent='Simulated more-info: '+event.detail.entityId;});return card;});
-function scenario(value){hass.states={'vacuum.demo':state(value==='missing'?'cleaning':value==='charging'?'docked':value), 'binary_sensor.demo_charging':state(value==='charging'?'on':'off',{device_class:'battery_charging'}), 'sensor.demo_status':state(value==='missing'?'cleaning':value==='charging'?'charging':value), 'sensor.demo_battery':state('78',{device_class:'battery'}), 'sensor.demo_progress':state(value==='docked'?'100':'42'), 'sensor.demo_area':state('34.8',{unit_of_measurement:'m²'}), 'sensor.demo_time':state('26',{unit_of_measurement:'min'}), 'binary_sensor.demo_water':state(value==='error'?'on':'off'), 'sensor.demo_error':state(value==='error'?'main_brush_jammed':'none'), 'sensor.demo_dock':state('ok'),...Object.fromEntries(rooms.map(room=>[room.entity,state('unknown')]))};if(value==='missing')for(const id of Object.keys(hass.states).filter(id=>id.startsWith('sensor.')))hass.states[id]=state('unavailable');if(value==='unavailable')for(const id of Object.keys(hass.states))hass.states[id]=state('unavailable');cards.forEach(card=>card.hass=hass);}
+function scenario(value){hass.states={'vacuum.demo':state(value==='missing'?'cleaning':value==='charging'?'docked':value,robotAttributes), 'binary_sensor.demo_charging':state(value==='charging'?'on':'off',{device_class:'battery_charging'}), 'sensor.demo_status':state(value==='missing'?'cleaning':value==='charging'?'charging':value), 'sensor.demo_battery':state('78',{device_class:'battery'}), 'sensor.demo_progress':state(value==='docked'?'100':'42'), 'sensor.demo_area':state('34.8',{unit_of_measurement:'m²'}), 'sensor.demo_time':state('26',{unit_of_measurement:'min'}), 'binary_sensor.demo_water':state(value==='error'?'on':'off'), 'sensor.demo_error':state(value==='error'?'main_brush_jammed':'none'), 'sensor.demo_dock':state('ok'),'image.demo_map':state('2026-10-17T08:30:00'),'sensor.demo_filter':state('124',{unit_of_measurement:'h'}),'sensor.demo_brush':state('218',{unit_of_measurement:'h'}),...Object.fromEntries(rooms.map(room=>[room.entity,state('unknown')]))};if(value==='missing')for(const id of Object.keys(hass.states).filter(id=>id.startsWith('sensor.')))hass.states[id]=state('unavailable');if(value==='unavailable')for(const id of Object.keys(hass.states))hass.states[id]=state('unavailable');cards.forEach(card=>card.hass=hass);}
 scenario('cleaning');
 const editor=document.getElementById('editor');editor.setConfig(config);editor.hass=hass;editor.addEventListener('config-changed',event=>{cards[0].setConfig(event.detail.config);});
 document.getElementById('theme').onclick=()=>document.body.classList.toggle('dark');
