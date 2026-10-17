@@ -51,22 +51,27 @@ customElements.define('ha-form',class extends HTMLElement{
       if(!input){
         const label=document.createElement('label');label.style.cssText='display:grid;gap:4px;margin:12px 0';
         const caption=document.createElement('span');caption.textContent=this._label(field);label.append(caption);
-        input=document.createElement(field.selector.select?'select':'input');input.dataset.field=field.name;input.setAttribute('aria-label',caption.textContent);
+        input=document.createElement(field.selector.select?'select':'input');if(field.selector.boolean)input.type='checkbox';input.dataset.field=field.name;input.setAttribute('aria-label',caption.textContent);
         if(field.selector.select)for(const value of field.selector.select.options){const option=document.createElement('option');option.value=value;option.textContent=value;input.append(option);}
-        input.addEventListener('input',()=>{this._data={...this._data,[field.name]:input.value};this.dispatchEvent(new CustomEvent('value-changed',{detail:{value:this._data},bubbles:true}));});
+        input.addEventListener('input',()=>{this._data={...this._data,[field.name]:field.selector.boolean?input.checked:input.value};this.dispatchEvent(new CustomEvent('value-changed',{detail:{value:this._data},bubbles:true}));});
         label.append(input);this.append(label);
       }
+      if(field.selector.boolean)input.checked=this._data[field.name]!==false;
       if(input.value!==(this._data[field.name]||''))input.value=this._data[field.name]||'';
     }
   }
 });
 await import('../dist/homeassistant-vacuum-card.js');
 const rooms=[{name:'Bad',icon:'mdi:shower',entity:'button.wohnzimmer_roborock_qrevo_master_bad'},{name:'Wohnzimmer',icon:'mdi:sofa',entity:'button.demo_living'},{name:'Küche',icon:'mdi:silverware-fork-knife',entity:'button.demo_kitchen'},{name:'Schlafzimmer',icon:'mdi:bed',entity:'button.demo_bedroom'},{name:'Arbeitszimmer',icon:'mdi:desk',entity:'button.demo_office'},{name:'Flur',icon:'mdi:floor-plan',entity:'button.demo_hall'}];
-const config={type:'custom:homeassistant-vacuum-card',entity:'vacuum.demo',name:'Roborock Qrevo Master',charging_entity:'binary_sensor.demo_charging',battery_entity:'sensor.demo_battery',progress_entity:'sensor.demo_progress',cleaning_area_entity:'sensor.demo_area',cleaning_time_entity:'sensor.demo_time',water_shortage_entity:'binary_sensor.demo_water',vacuum_error_entity:'sensor.demo_error',dock_error_entity:'sensor.demo_dock',rooms};
+const config={type:'custom:homeassistant-vacuum-card',entity:'vacuum.demo',name:'Roborock Qrevo Master',rooms};
+const registry=[{entity_id:'vacuum.demo'},
+  ...Object.entries({status:'status',battery:'',progress:'clean_percent',area:'cleaning_area',time:'cleaning_time',error:'vacuum_error',dock:'dock_error'}).map(([name,translation_key])=>({entity_id:`sensor.demo_${name}`,translation_key})),
+  {entity_id:'binary_sensor.demo_charging'},{entity_id:'binary_sensor.demo_water',translation_key:'water_shortage'}
+].map(entry=>({device_id:'demo-robot',platform:'roborock',config_entry_id:'demo-account',...entry}));
 const state=(value,attributes={})=>({state:value,attributes});
-const hass={states:{},callService:async(domain,service,data)=>{document.getElementById('log').textContent=JSON.stringify({domain,service,data},null,2);await new Promise(resolve=>setTimeout(resolve,700));if(document.getElementById('fail').checked)throw new Error('Simulated connection failure');}};
+const hass={states:{},callWS:async({type})=>type.includes('entity_registry')?registry:[],callService:async(domain,service,data)=>{document.getElementById('log').textContent=JSON.stringify({domain,service,data},null,2);await new Promise(resolve=>setTimeout(resolve,700));if(document.getElementById('fail').checked)throw new Error('Simulated connection failure');}};
 const cards=['compact','wide'].map(layout=>{const card=document.getElementById(layout);card.setConfig({...config,layout});card.addEventListener('hass-more-info',event=>{document.getElementById('log').textContent='Simulated more-info: '+event.detail.entityId;});return card;});
-function scenario(value){hass.states={'vacuum.demo':state(value==='missing'?'cleaning':value==='charging'?'docked':value), 'binary_sensor.demo_charging':state(value==='charging'?'on':'off'), 'sensor.demo_battery':state('78'), 'sensor.demo_progress':state(value==='docked'?'100':'42'), 'sensor.demo_area':state('34.8',{unit_of_measurement:'m²'}), 'sensor.demo_time':state('26',{unit_of_measurement:'min'}), 'binary_sensor.demo_water':state(value==='error'?'on':'off'), 'sensor.demo_error':state(value==='error'?'main_brush_jammed':'none'), 'sensor.demo_dock':state('ok'),...Object.fromEntries(rooms.map(room=>[room.entity,state('unknown')]))};if(value==='missing')for(const id of Object.keys(hass.states).filter(id=>id.startsWith('sensor.')))hass.states[id]=state('unavailable');if(value==='unavailable')for(const id of Object.keys(hass.states))hass.states[id]=state('unavailable');cards.forEach(card=>card.hass=hass);}
+function scenario(value){hass.states={'vacuum.demo':state(value==='missing'?'cleaning':value==='charging'?'docked':value), 'binary_sensor.demo_charging':state(value==='charging'?'on':'off',{device_class:'battery_charging'}), 'sensor.demo_status':state(value==='missing'?'cleaning':value==='charging'?'charging':value), 'sensor.demo_battery':state('78',{device_class:'battery'}), 'sensor.demo_progress':state(value==='docked'?'100':'42'), 'sensor.demo_area':state('34.8',{unit_of_measurement:'m²'}), 'sensor.demo_time':state('26',{unit_of_measurement:'min'}), 'binary_sensor.demo_water':state(value==='error'?'on':'off'), 'sensor.demo_error':state(value==='error'?'main_brush_jammed':'none'), 'sensor.demo_dock':state('ok'),...Object.fromEntries(rooms.map(room=>[room.entity,state('unknown')]))};if(value==='missing')for(const id of Object.keys(hass.states).filter(id=>id.startsWith('sensor.')))hass.states[id]=state('unavailable');if(value==='unavailable')for(const id of Object.keys(hass.states))hass.states[id]=state('unavailable');cards.forEach(card=>card.hass=hass);}
 scenario('cleaning');
 const editor=document.getElementById('editor');editor.setConfig(config);editor.hass=hass;editor.addEventListener('config-changed',event=>{cards[0].setConfig(event.detail.config);});
 document.getElementById('theme').onclick=()=>document.body.classList.toggle('dark');

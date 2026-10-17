@@ -1,6 +1,6 @@
 # Project workflow
 
-The card uses Lit, a bundled ES module, a native HA form editor, node:test and Happy DOM. Room tiles call explicitly configured button.press or script.turn_on targets. Sensor mappings are explicit; do not guess entities from names.
+The card uses Lit, a bundled ES module, a native HA form editor, node:test and Happy DOM. Room tiles call explicitly configured button.press or script.turn_on targets. Sensor mappings default to automatic registry discovery; explicit overrides win. Never guess entities from names.
 
 ## Room controls and sensor semantics
 
@@ -35,3 +35,13 @@ For manual updates replace the file and change the query version on the existing
 GitHub login does not set Git author/committer metadata. Check effective identity and keep per-project changes repository-local. Do not store tokens, personal device data or inherited authorization in this guide.
 
 Sources: https://hacs.dev/docs/publish/plugin/ and https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/.
+
+## Automatic sensor selection
+
+Use the full entity registry list and device registry list (read-only callWS). Scope candidates to the selected vacuum's device_id, platform and config_entry_id. Standard battery and battery_charging classes work across integrations; other mappings currently use verified Roborock translation keys. Progress is clean_percent, not a guessed entity suffix. Total cleaning time/area are not current cleaning metrics. Skip disabled entries and ambiguous matches.
+
+Roborock docks are separate devices identified by the robot identifier plus _dock; the current integration does not supply a via_device relationship. Match this exact identifier and config entry, never every dock in the account. Keep room controls explicit. Automatic fields are resolved at runtime and displayed in the editor without writing them as manual overrides. Store only changed sensor fields; an empty string opts out of discovery and allows existing attribute fallbacks. Preserve manual overrides and unknown settings across vacuum changes. Ignore obsolete/disconnected registry responses, cache per connection, and provide an explicit refresh/retry in the editor. Dashboard registry snapshots refresh on reload.
+
+The robot details button contains one centered robot SVG; no separate dock silhouette above it. Charge/paused/error markers belong inside the robot body.
+
+Verified source references: [HA entity registry frontend](https://github.com/home-assistant/frontend/blob/dev/src/data/entity/entity_registry.ts), [Roborock sensors](https://github.com/home-assistant/core/blob/dev/homeassistant/components/roborock/sensor.py), [binary sensors](https://github.com/home-assistant/core/blob/dev/homeassistant/components/roborock/binary_sensor.py), [dock device identifiers](https://github.com/home-assistant/core/blob/dev/homeassistant/components/roborock/coordinator.py).

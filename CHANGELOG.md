@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — Unreleased
+
+- Automatically select related battery/charging sensors and Roborock status, progress, area/time and error sensors through HA's device and entity registries, including the associated dock.
+- Show detected values in the visual editor, preserve manual overrides and offer refresh, reset and opt-out controls. Automatic mappings follow the selected vacuum; room targets stay explicit.
+- Skip disabled and ambiguous candidates, handle registry failures and ignore stale responses.
+- Remove the extra dock silhouette above the robot; retain one centered status icon with charging animation.
+- Verify discovery and UI behavior with mocks; target Home Assistant/device verification is still required.
+
 ## 0.4.0 — 2026-10-17
 
 - Automatically shrink both layouts outside cleaning/returning: keep status, battery, robot icon, room controls and alerts, and omit cleaning metrics at rest.

@@ -5,6 +5,7 @@ export function validateConfig(config) {
   if (!config || !entityPattern.test(config.entity || '') || !config.entity.startsWith('vacuum.')) throw new Error('Select a valid vacuum entity.');
   if (config.layout !== undefined && !['compact', 'wide'].includes(config.layout)) throw new Error('Layout must be compact or wide.');
   if (config.name !== undefined && typeof config.name !== 'string') throw new Error('Name must be text.');
+  if (config.auto_detect !== undefined && typeof config.auto_detect !== 'boolean') throw new Error('Automatic sensor selection must be true or false.');
   for (const field of sensorFields) {
     if (config[field] && (typeof config[field] !== 'string' || !/^(sensor|binary_sensor)\.[a-z0-9_]+$/.test(config[field]))) throw new Error(`${field} must be a sensor entity.`);
   }

@@ -183,6 +183,8 @@ test('robot icon follows live state and never infers charging from docked alone'
     card.hass.states['binary_sensor.charging'] = { state: charging };
     card.hass = card.hass; await card.updateComplete;
     assert.ok(card.shadowRoot.querySelector(`.robot-${expected}`), `${state}/${charging}: ${expected}`);
+    assert.equal(card.shadowRoot.querySelectorAll('.details svg').length, 1);
+    assert.equal(card.shadowRoot.querySelector('.dock'), null);
     if (expected === 'charging') assert.equal(card.shadowRoot.querySelector('h1').textContent, 'Charging');
   }
   card.setConfig({ entity: 'vacuum.example', status_entity: 'sensor.status' });
@@ -193,6 +195,53 @@ test('robot icon follows live state and never infers charging from docked alone'
   card.hass.states['sensor.status'].state = 'charging_complete';
   card.hass = card.hass; await card.updateComplete;
   assert.ok(card.shadowRoot.querySelector('.robot-docked'));
+});
+
+test('live card and editor auto-select sensors without freezing automatic fields into overrides', async () => {
+  const card = fixture();
+  card.hass.states['vacuum.example'].state = 'cleaning';
+  const entities = ['vacuum.example', 'sensor.battery', 'sensor.progress'].map(entity_id => ({
+    entity_id, device_id: 'robot', platform: 'roborock', config_entry_id: 'account',
+    ...(entity_id === 'sensor.progress' ? { translation_key: 'clean_percent' } : {}),
+  }));
+  Object.assign(card.hass.states, {
+    'sensor.battery': { state: '93', attributes: { device_class: 'battery' } },
+    'sensor.progress': { state: '51' },
+  });
+  let calls = 0;
+  card.hass.callWS = async ({ type }) => { calls++; return type.includes('entity_registry') ? entities : []; };
+  card.hass = card.hass;
+  await card.updateComplete;
+  await new Promise(resolve => setTimeout(resolve, 0)); await card.updateComplete;
+  assert.match(card.shadowRoot.querySelector('[data-metric=Battery]').textContent, /93/);
+  assert.equal(card.shadowRoot.querySelector('progress').value, 51);
+  const editor = document.createElement('homeassistant-vacuum-card-editor');
+  editor.setConfig({ entity: 'vacuum.example', rooms: [bathroom], custom_setting: 42 });
+  editor.hass = card.hass; document.body.append(editor);
+  await editor.updateComplete;
+  await new Promise(resolve => setTimeout(resolve, 0)); await editor.updateComplete;
+  let result;
+  editor.addEventListener('config-changed', event => result = event.detail.config);
+  let form = editor.shadowRoot.querySelector('.sensor-form');
+  assert.equal(form.data.battery_entity, 'sensor.battery');
+  assert.equal(form.data.progress_entity, 'sensor.progress');
+  assert.equal(calls, 2, 'card and editor share the connection registry request');
+  form.dispatchEvent(new CustomEvent('value-changed', { detail: { value: { ...form.data, battery_entity: 'sensor.manual' } } }));
+  await editor.updateComplete;
+  assert.equal(result.battery_entity, 'sensor.manual');
+  assert.equal(result.progress_entity, undefined);
+  assert.equal(result.custom_setting, 42);
+  assert.equal(result.rooms[0].entity, bathroom.entity);
+  form = editor.shadowRoot.querySelector('.sensor-form');
+  const cleared = { ...form.data }; delete cleared.progress_entity;
+  form.dispatchEvent(new CustomEvent('value-changed', { detail: { value: cleared } }));
+  await editor.updateComplete;
+  assert.equal(result.progress_entity, '');
+  editor.setConfig({ ...result, entity: 'vacuum.other' }); await editor.updateComplete;
+  assert.equal(editor.shadowRoot.querySelector('.sensor-form').data.battery_entity, 'sensor.manual');
+  editor._resetSensors(); await editor.updateComplete;
+  assert.equal(result.battery_entity, undefined); assert.equal(result.progress_entity, undefined);
+  assert.equal(result.rooms[0].entity, bathroom.entity); assert.equal(result.custom_setting, 42);
 });
 
 test('motion pauses offscreen/in hidden tabs and observers are released on disconnect', async () => {

@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from 'lit';
 import { validateConfig, isUnavailable, formatState, metric, roomName, roomAction, roomBlocked, alerts, robotMode, humanize } from './model.js';
 import { robotIcon } from './robot-icon.js';
 import { cardStyles } from './styles.js';
+import { SensorDiscovery } from './discovery.js';
 import './editor.js';
 export { validateConfig } from './model.js';
 
@@ -12,6 +13,7 @@ export class VacuumCard extends LitElement {
     _pending: { state: true }, _feedback: { state: true }, _failed: { state: true },
   };
   static styles = cardStyles;
+  constructor() { super(); this._discovery = new SensorDiscovery(this); }
 
   connectedCallback() {
     super.connectedCallback();
@@ -53,7 +55,7 @@ export class VacuumCard extends LitElement {
   }
   getCardSize() {
     const rows = Math.ceil((this._config?.rooms.length || 0) / (this._config?.layout === 'wide' ? 3 : 2));
-    if (this._config && !['cleaning', 'returning'].includes(robotMode(this._config, this.states))) return 2 + rows;
+    if (this._config && !['cleaning', 'returning'].includes(robotMode(this._discovery.config, this.states))) return 2 + rows;
     return this._config?.layout === 'compact' ? 3 + rows : 4 + rows * 2;
   }
   getGridOptions() { return { columns: this._config?.layout === 'wide' ? 12 : 6, min_columns: 6 }; }
@@ -79,7 +81,7 @@ export class VacuumCard extends LitElement {
   }
   render() {
     if (!this._config) return nothing;
-    const config = this._config, states = this.states, vacuum = states[config.entity];
+    const config = this._discovery.config, states = this.states, vacuum = states[config.entity];
     const status = config.status_entity ? states[config.status_entity] : vacuum;
     const battery = metric(config, states, 'battery_entity', 'battery_level');
     const progress = metric(config, states, 'progress_entity', 'cleaning_progress');

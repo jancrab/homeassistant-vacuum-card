@@ -6,7 +6,7 @@ A theme-native Home Assistant card for Roborock room cleaning. Choose an existin
 
 ### Manual
 
-Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.4.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
+Copy `dist/homeassistant-vacuum-card.js` to `/config/www/`. Register `/local/homeassistant-vacuum-card.js?v=0.5.0` as a JavaScript module under Settings > Dashboards > Resources and reload the browser. On updates, replace the file and change the query version on the existing resource.
 
 ### HACS
 
@@ -19,7 +19,7 @@ Add [jancrab/homeassistant-vacuum-card](https://github.com/jancrab/homeassistant
 1. Add **Vacuum Card** and select your vacuum entity.
 2. Under **Rooms**, select **Add room**. Choose the existing cleaning control, for example `button.wohnzimmer_roborock_qrevo_master_bad`.
 3. Enter **Bad** as the room name and choose `mdi:shower` as the icon. Add other rooms the same way. Move up/down and Remove manage the list.
-4. Expand **Statistics and alerts** and explicitly select the robot's battery, cleaning progress, status and error sensors as needed.
+4. Open **Statistics and alerts** to review the automatically selected sensors. Change a selection to override it; clear a field to use its fallback. **Use detected sensors** removes sensor overrides and restores automatic selection.
 5. Save. Tapping a room starts its configured routine immediately.
 
 Names and icons fall back to the selected control's friendly name/icon. Both remain visible on every room tile. No entities are guessed or selected from other robots. The editor uses HA's native entity and icon pickers.
@@ -28,7 +28,7 @@ Choose **compact** under **Layout** for a dense status header, a single statisti
 
 Both layouts automatically shrink when the robot is not cleaning or returning. Charging, docked, idle, paused, error and offline states use a small header with status, robot icon and battery, followed by compact room buttons. Area, time and progress are omitted at rest, including old readings from the last run. Alerts and action feedback remain visible. Starting/resuming work restores the chosen layout automatically from HA state updates; no manual mode switch is needed. While working, battery, area and time occupy a slim icon-and-value row, with accessible labels and hover descriptions.
 
-The small robot icon moves while cleaning or returning, and shows a pulsing lightning bolt while charging. Docked, paused, error, offline and idle states have distinct static symbols. Select **Charging binary sensor** under **Statistics and alerts** to use Roborock's charging entity. Docked alone does not trigger charging animation. Without that mapping, an explicit `charging` vacuum/detailed status can supply the signal. Animation pauses offscreen and in hidden browser tabs, and becomes static with the system's reduced-motion preference. The icon still opens robot details.
+The small robot icon moves while cleaning or returning, and shows a pulsing lightning bolt while charging. Docked, paused, error, offline and idle states have distinct static symbols. Roborock's charging entity is selected automatically when available; it can also be selected manually under **Statistics and alerts**. The header shows one robot symbol, with no separate dock drawing above it. Docked alone does not trigger charging animation. Without that mapping, an explicit `charging` vacuum/detailed status can supply the signal. Animation pauses offscreen and in hidden browser tabs, and becomes static with the system's reduced-motion preference. The icon still opens robot details.
 
 ## YAML example
 
@@ -45,7 +45,13 @@ rooms:
     entity: button.wohnzimmer_roborock_qrevo_master_bad
 ```
 
-Optional sensor mappings (replace every example with an actual entity or omit it):
+Automatic sensor selection is enabled by default, including for YAML cards with only a vacuum entity. The editor displays the detected values; automatic fields are resolved at runtime rather than saved as fixed overrides, so they follow a changed vacuum selection. Saved manual mappings always take priority, even when changing robots.
+
+Detection reads Home Assistant's entity and device registries. It requires the same device, integration and configuration entry. Roborock status, progress (`clean_percent`), area, time and error sensors use their integration translation keys. The separate Roborock dock is matched by its exact device identifier. Other integrations support standard battery and battery-charging device classes; additional sensors can be selected manually. Renaming an entity does not change its semantics. Disabled and ambiguous candidates are skipped, and room controls are never auto-selected.
+
+Use **Refresh sensors** after adding/enabling/renaming entities or if registry loading failed. Reload existing dashboard cards to refresh their registry snapshot. If detection is unavailable, existing manual mappings and vacuum-attribute fallbacks still work. Set `auto_detect: false` (or disable **Automatically select related sensors** in the editor) to use only manual mappings. An explicitly empty field such as `progress_entity: ""` opts that field out of detection and uses the fallback below; remove the YAML key to restore automatic selection.
+
+Optional manual sensor overrides (replace every example with an actual entity or omit it):
 
 ```yaml
 status_entity: sensor.your_robot_status
@@ -59,7 +65,9 @@ vacuum_error_entity: sensor.your_robot_vacuum_error
 dock_error_entity: sensor.your_robot_dock_error
 ```
 
-| Setting | Behavior when omitted |
+The following fallbacks apply when no sensor was detected or selected:
+
+| Setting | Fallback |
 | --- | --- |
 | `status_entity` | Use the vacuum state. |
 | `charging_entity` | Animate charging only when the vacuum or configured detailed status explicitly reports `charging`. |
@@ -93,7 +101,7 @@ npm run dev
 
 Open `http://127.0.0.1:4173` for the built card with simulated data, light/dark themes, 280/360/480 px widths, error/offline/missing-data scenarios, a service log and simulated editor inputs. Icons and selectors in this standalone demo are local stand-ins for HA's native components. No command reaches a real robot.
 
-Automated tests cover exact button/script targets, in-flight serialization, failure/retry, unavailable controls, zero/missing metrics, sensor alerts, reused `hass`, context subscription cleanup and visual-editor configuration preservation. Browser checks exercise the built bundle. Real Home Assistant editor startup and physical robot operation still require verification in the target installation.
+Automated tests cover registry scoping, dock association, ambiguous/disabled sensors, automatic/manual selection, async failures and editor overrides, as well as exact button/script targets, in-flight serialization, failure/retry, unavailable controls, zero/missing metrics, sensor alerts, reused `hass`, context subscription cleanup and visual-editor configuration preservation. Browser checks exercise the built bundle. Real Home Assistant editor startup and physical robot operation still require verification in the target installation.
 
 Commit `package-lock.json` and the built bundle with source changes. CI verifies the committed build and HACS requirements; the release workflow requires a matching version tag. See [GitHub Actions](https://github.com/jancrab/homeassistant-vacuum-card/actions) for validation results and [Releases](https://github.com/jancrab/homeassistant-vacuum-card/releases) for downloadable bundles. See also [AGENTS.md](AGENTS.md), [the working guide](docs/working-guide.md) and [the design guide](docs/design-style.md).
 
