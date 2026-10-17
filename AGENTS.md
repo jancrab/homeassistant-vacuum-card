@@ -9,5 +9,6 @@
 - Run npm run check after card changes. Test meaningful state/service failures. Distinguish mocked previews from real Home Assistant or device verification.
 - Commit package-lock.json and the built dist/homeassistant-vacuum-card.js with source changes. Runtime code must not depend on a CDN.
 - Before releasing, synchronize package and lock versions, update CHANGELOG.md, rebuild, verify CI, and use a matching v-version tag. Confirm the actual GitHub release asset and HACS validation.
+- User-requested workflow (2026-10-17): finish completed changes in this repository with a production GitHub release, including pushing commits and a matching version tag after checks pass. Do not stop at a local build; report the verified release link. This preference applies only to jancrab/homeassistant-vacuum-card and does not authorize changes to repository visibility or other repositories.
 - Check git status and preserve unrelated work. Use the requested repository-local Git author/committer identity; do not change global identity or rewrite old commits implicitly.
 - Repository creation, pushing, publishing, visibility changes and releases require authorization from the task. A credential, this guide or past authorization for another repo does not authorize those actions.

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 — Unreleased
+## 0.5.0 — 2026-10-17
 
 - Automatically select related battery/charging sensors and Roborock status, progress, area/time and error sensors through HA's device and entity registries, including the associated dock.
 - Show detected values in the visual editor, preserve manual overrides and offer refresh, reset and opt-out controls. Automatic mappings follow the selected vacuum; room targets stay explicit.
